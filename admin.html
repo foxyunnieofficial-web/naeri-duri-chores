@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>내리두리 관리</title>
+<meta name="theme-color" content="#f4f1fb">
+<meta name="robots" content="noindex">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="styles.css">
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+</head>
+<body class="admin">
+<div class="wrap">
+  <div class="notice" id="sync" hidden></div>
+  <header class="hero">
+    <img src="icons/icon-192.png" width="96" height="96" alt="" class="adminicon">
+    <div class="bubble"><h1>관리 페이지</h1><p>집안일, 별 기록, 메시지, 알림을 한곳에서 고쳐요.</p></div>
+  </header>
+
+  <section>
+    <h2>앱 주소</h2>
+    <div class="card">
+      <ul class="links" id="links"></ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="head"><h2>집안일</h2><span class="count" id="choreCount"></span></div>
+    <p class="sub">이름, 담당, 시간, 요일을 바꾸거나 새 일을 넣어요. 저장하면 다음 주부터 적용돼요.</p>
+    <div class="list" id="chores"></div>
+    <div class="btnrow"><button type="button" class="btn ghost" id="addChore">+ 새 집안일</button></div>
+    <label class="check"><input type="checkbox" id="applyNow"> 이번 주 남은 일에도 바로 적용 (이번 주에 옮겨 둔 요일은 기본 요일로 돌아가요)</label>
+    <div class="btnrow"><button type="button" class="btn" id="saveChores">집안일 저장</button><span class="status" id="choreStatus"></span></div>
+  </section>
+
+  <section>
+    <div class="head"><h2>별 기록</h2><span class="count" id="logCount"></span></div>
+    <p class="sub">잘못 눌린 기록을 지우면 별도 하나 빠져요.</p>
+    <ul class="feed card" id="logs"></ul>
+  </section>
+
+  <section>
+    <div class="head"><h2>메시지</h2><span class="count">최근 30일</span></div>
+    <p class="sub">여기서 지우면 보낸 사람, 받은 사람 모두에게서 사라져요.</p>
+    <ul class="feed card" id="msgs"></ul>
+  </section>
+
+  <section>
+    <div class="head"><h2>알림 받는 폰</h2></div>
+    <p class="sub">폰을 바꿨거나 알림이 두 번씩 오면 예전 폰을 지워요.</p>
+    <ul class="feed card" id="subs"></ul>
+  </section>
+</div>
+<div class="toast" id="toast" hidden><span id="toastMsg"></span></div>
+<script type="module" src="admin.js"></script>
+</body>
+</html>

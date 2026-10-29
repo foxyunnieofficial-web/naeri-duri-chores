@@ -202,7 +202,7 @@ function markSeen(id) { const l = seenList(); if (!l.includes(id)) l.push(id); t
 function showNewStickers() {
   if (!$("cheer").hidden) return;
   const seenM = (() => { try { return JSON.parse(localStorage.getItem("seenMsgs:" + me) || "[]"); } catch (e) { return []; } })();
-  const freshM = Object.values(S.messages).filter(m => m.to_p === me && !seenM.includes(m.id)).sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
+  const freshM = Object.values(S.messages).filter(m => m.to_p === me && !m.del_to && !seenM.includes(m.id)).sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
   if (freshM.length) {
     const m = freshM[freshM.length - 1];
     try { localStorage.setItem("seenMsgs:" + me, JSON.stringify([...seenM, ...freshM.map(x => x.id)].slice(-300))); } catch (e) {}
@@ -272,22 +272,32 @@ async function sendMsg() {
   try { for (const r of rows) { await store.addMessage(r); store.notify({ msg: r.id }).catch(() => {}); } } catch (e) { fail(e); }
 }
 function renderMessages() {
-  const inbox = Object.values(S.messages).filter(m => m.to_p === me).sort(byTime).slice(0, 4);
+  const inbox = Object.values(S.messages).filter(m => m.to_p === me && !m.del_to).sort(byTime).slice(0, 4);
   $("msgInSec").hidden = !inbox.length;
   $("msgIn").innerHTML = inbox.map(m => {
     const replied = Object.values(S.messages).some(x => x.reply_to === m.id && x.from_p === me);
     return `<div class="card msg"><div class="reqfrom">${mallang(m.from_p, "happy", 40, "")}<span>${esc(callName(m.from_p, me))}</span>${m.reply_to ? `<span class="chip">답장</span>` : ""}<span class="sub">${fmtDay(new Date(m.created_at))}</span></div>
     <p class="reqmsg">${esc(m.msg)}</p>
     <div class="btnrow">${m.heart ? `<span class="heart">💖 하트 보냄</span>` : `<button type="button" class="btn small" data-heart="${esc(m.id)}">💖 하트</button>`}
-      <button type="button" class="btn ghost small" data-reply="${esc(m.id)}">${replied ? "또 답장하기" : "답장하기"}</button></div></div>`;
+      <button type="button" class="btn ghost small" data-reply="${esc(m.id)}">${replied ? "또 답장하기" : "답장하기"}</button>
+      <button type="button" class="linkbtn" data-delmsg="${esc(m.id)}">삭제</button></div></div>`;
   }).join("");
   const sent = Object.values(S.messages).filter(m => m.from_p === me).sort(byTime).slice(0, 6);
   $("msgSentSec").hidden = !sent.length && !isPar();
   $("msgSent").innerHTML = sent.length ? sent.map(m => {
     const back = Object.values(S.messages).some(x => x.reply_to === m.id && x.to_p === me);
     return `<li><span class="chip c-${esc(m.to_p)}">${esc(callName(m.to_p, me))}</span><span>${esc(m.msg.length > 28 ? m.msg.slice(0, 28) + "…" : m.msg)}</span>
-    <span class="when">${fmtDay(new Date(m.created_at))}</span>${m.heart ? `<span class="heart">💖</span>` : ""}${back ? `<span class="heart">답장 옴</span>` : ""}</li>`;
+    <span class="when">${fmtDay(new Date(m.created_at))}</span>${m.heart ? `<span class="heart">💖</span>` : ""}${back ? `<span class="heart">답장 옴</span>` : ""}<button type="button" class="linkbtn" data-delmsg="${esc(m.id)}" aria-label="보낸 메시지 삭제">삭제</button></li>`;
   }).join("") : `<li>아직 보낸 메시지가 없어요.</li>`;
+}
+// 보낸 메시지를 지우면 받은 사람한테서도 사라지고, 받은 메시지를 지우면 내 화면에서만 사라져요
+async function deleteMsg(id) {
+  const m = S.messages[id]; if (!m) return;
+  const mine = m.from_p === me;
+  if (!confirm(mine ? `이 메시지를 지울까? ${callName(m.to_p, me)} 화면에서도 사라져.` : "이 메시지를 내 화면에서 지울까?")) return;
+  if (mine) delete S.messages[id]; else m.del_to = true;
+  render(); toast("메시지를 지웠어요", false);
+  try { if (mine) await store.delMessage(id); else await store.updateMessage(id, { del_to: true }); } catch (e) { fail(e); }
 }
 async function sendHeart(id) {
   const m = S.messages[id]; if (!m || m.heart) return;
@@ -630,6 +640,7 @@ document.addEventListener("click", e => {
   if (el.id === "msgSend") return sendMsg();
   if (el.id === "msgClose") { $("msgSheet").hidden = true; return; }
   if (el.dataset.heart) return sendHeart(el.dataset.heart);
+  if (el.dataset.delmsg) return deleteMsg(el.dataset.delmsg);
   if (el.dataset.color) return setLook({ color: el.dataset.color });
   if (el.dataset.acc) return setLook({ acc: el.dataset.acc });
   if (el.dataset.asktask) {

@@ -43,11 +43,13 @@ function supabaseStore(cfg, viewer) {
     publicKey: () => sb.from("public_config").select("value").eq("key", "vapid_public").maybeSingle().then(must).then(r => r && r.value),
     saveSub: row => sb.from("push_subs").upsert(row).then(must),
     delSub: endpoint => sb.from("push_subs").delete().eq("endpoint", endpoint).then(must),
+    listSubs: () => sb.from("push_subs").select("endpoint, person, created_at").then(must),
     addRequest: row => sb.from("requests").insert(row).then(must),
     updateRequest: (id, patch) => sb.from("requests").update(patch).eq("id", id).then(must),
     addSticker: row => sb.from("stickers").insert(row).then(must),
     addMessage: row => sb.from("messages").insert(row).then(must),
     updateMessage: (id, patch) => sb.from("messages").update(patch).eq("id", id).then(must),
+    delMessage: id => sb.from("messages").delete().eq("id", id).then(must),
     // 알림 서버에 바로 보내 달라고 부탁해요 (테스트 알림, 부탁 알림, 부탁 답장)
     notify: body => fetch(`${cfg.supabaseUrl}/functions/v1/tick`, {
       method: "POST", headers: { "Content-Type": "application/json", apikey: cfg.supabaseAnonKey, Authorization: `Bearer ${cfg.supabaseAnonKey}` },
@@ -93,7 +95,8 @@ function localStore(viewer) {
     addSticker: row => { db.stickers[row.id] = row; save(); return ok(); },
     addMessage: row => { db.messages[row.id] = row; save(); return ok(); },
     updateMessage: (id, patch) => { if (db.messages[id]) Object.assign(db.messages[id], patch); save(); return ok(); },
-    saveSub: () => ok(), delSub: () => ok(), notify: () => Promise.reject(new Error("local")),
+    delMessage: id => { delete db.messages[id]; save(); return ok(); },
+    saveSub: () => ok(), delSub: () => ok(), listSubs: () => ok([]), notify: () => Promise.reject(new Error("local")),
     subscribe() {},
   };
 }

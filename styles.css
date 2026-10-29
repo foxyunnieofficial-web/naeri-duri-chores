@@ -171,7 +171,7 @@ html, body { min-height: 100%; }
 .donechip { font-size: 12px; font-weight: 600; color: var(--both-deep); }
 
 .field { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; font-size: 14px; }
-.field input[type="time"], .field input[type="number"], .field select { font: inherit; padding: 6px 10px; border-radius: 12px; border: 2px solid var(--line); background: var(--bg); color: var(--fg); }
+.field input[type="time"], .field input[type="text"], .field input[type="number"], .field select { font: inherit; padding: 6px 10px; border-radius: 12px; border: 2px solid var(--line); background: var(--bg); color: var(--fg); }
 .field input[type="number"] { width: 72px; }
 .status { font-size: 13px; color: var(--muted); margin: 0; }
 .status.good { color: var(--both-deep); font-weight: 600; }
@@ -224,3 +224,13 @@ html, body { min-height: 100%; }
 .feed .heart { font-size: 13px; color: var(--muted); }
 .c-엄마 { background: var(--mom-soft); color: var(--mom-deep); }
 .c-아빠 { background: var(--dad-soft); color: var(--dad-deep); }
+.linkbtn { background: none; border: 0; padding: 6px 4px; font: inherit; font-size: 13px; color: var(--muted); text-decoration: underline; cursor: pointer; margin-left: auto; }
+.feed .linkbtn { margin-left: 0; }
+
+/* 관리 페이지 */
+.admin .adminicon { border-radius: 28px; }
+.admin .namein { flex: 1; min-width: 0; font-family: var(--display); font-size: 18px; }
+.admin .links { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.admin .links li { display: flex; gap: 8px; align-items: center; min-width: 0; }
+.admin .links a { overflow-wrap: anywhere; font-size: 13.5px; }
+.admin .check { display: flex; gap: 8px; align-items: flex-start; font-size: 13.5px; color: var(--muted); margin: 12px 0 0; }
