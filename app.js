@@ -1,6 +1,7 @@
 import {
   PEOPLE, DAYN, WEEK_ORDER, RULES, PRAISE, DEFAULT_PREFS, D, K, add, diff, mondayOf, fmtDay, other,
   generateWeek, isMine, freqLabel, nudgeText,
+  NICK, WHEN, askMessage, askCount, STICKERS, sticker, callName,
 } from "./shared/plan.js";
 import { createStore } from "./store.js";
 
@@ -11,7 +12,7 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
 
 // ---- 상태 ----
 let store;
-let S = { household: null, tasks: {}, logs: [], weeks: {} };
+let S = { household: null, tasks: {}, logs: [], weeks: {}, requests: {}, stickers: [] };
 let me = "내리";
 try { me = localStorage.getItem("me") || "내리"; } catch (e) {}
 let planWeek = null; // 0 = 이번 주, 1 = 다음 주
@@ -23,6 +24,9 @@ const prefs = () => ({ ...DEFAULT_PREFS, ...(S.household.prefs || {}) });
 const now = () => new Date();
 const thisMonday = () => mondayOf(now());
 const starsOf = p => S.logs.filter(l => l.by === p).length;
+const newId = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const logName = l => l.title || chore(l.chore_id).name;
+const MAIL = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M4 7l8 6 8-6"/><path d="M12 17.5c-1.6-1.2-2.6-2-2.6-3a1.3 1.3 0 0 1 2.6-.3 1.3 1.3 0 0 1 2.6.3c0 1-1 1.8-2.6 3z" fill="currentColor" stroke="none"/></svg>`;
 
 // ---- 말랑이 ----
 let uid = 0;
@@ -91,6 +95,130 @@ function simpleCard(c, extra, btn) {
     <span class="meta">${extra}<span class="mins">약 ${c.mins}분</span></span></div>${btn}</div></div>`;
 }
 
+// ---- 부탁하기 ----
+const STATUS = { open: "기다리는 중", done: "해줬어요 💖", declined: "지금은 어렵대요", canceled: "취소했어요" };
+function renderRequests() {
+  const all = Object.values(S.requests).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+  const inbox = all.filter(r => r.to_p === me && r.status === "open");
+  $("inboxSec").hidden = !inbox.length;
+  $("inboxTitle").textContent = `부탁 받은 일 ${inbox.length}개`;
+  $("inbox").innerHTML = inbox.map(r => `<div class="card req"><div class="reqfrom">${mallang(r.from_p, "happy", 40, "")}<span>${esc(callName(r.from_p))}의 부탁</span><span class="sub">${esc(WHEN[r.due] || "")}</span></div>
+    <p class="reqmsg">${esc(r.msg)}</p>
+    <div class="acts"><button type="button" class="btn" data-reqdone="${esc(r.id)}">${STAR(18)} 해줬어요</button><button type="button" class="btn ghost" data-reqno="${esc(r.id)}">지금은 어려워</button></div></div>`).join("");
+  const since = Date.now() - 3 * 864e5;
+  const sent = all.filter(r => r.from_p === me && (r.status === "open" || new Date(r.created_at).getTime() > since)).slice(0, 5);
+  $("sentSec").hidden = !sent.length;
+  $("sent").innerHTML = sent.map(r => `<li><span>${esc(r.title)}</span><span class="st ${r.status === "done" ? "ok" : r.status === "open" ? "soon" : "today"}">${STATUS[r.status] || r.status}</span>
+    <span class="when">${esc(WHEN[r.due] || "")}</span>${r.status === "open" ? `<button type="button" class="btn ghost small" data-reqcancel="${esc(r.id)}">취소</button>` : ""}</li>`).join("");
+}
+
+let ask = { task: null, when: "today", i: 0 };
+function askTitleText() { return ask.task ? ask.task.title : $("askText").value.trim(); }
+function renderAsk() {
+  const to = other(me);
+  $("askHead").textContent = `${NICK[to]}에게 부탁하기`;
+  const mine = Object.values(S.tasks).filter(t => t.status === "todo" && t.who === me && t.day <= K(add(thisMonday(), 6))).sort((a, b) => a.day.localeCompare(b.day)).slice(0, 8);
+  $("askTasks").innerHTML = mine.map(t => `<button type="button" data-asktask="${esc(t.id)}" aria-pressed="${ask.task && ask.task.task_id === t.id}">${esc(chore(t.chore_id).name)} · ${fmtDay(D(t.day))}</button>`).join("")
+    || `<span class="sub">내 할 일이 없으면 아래에 직접 써요.</span>`;
+  document.querySelectorAll("#askWhen button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.when === ask.when)));
+  const title = askTitleText();
+  $("askPreview").textContent = title ? askMessage(me, title, ask.when, ask.i) : "부탁할 일을 고르거나 써 주세요. 여기에 보낼 말이 미리 보여요.";
+  $("askSend").disabled = !title;
+}
+function openAsk() { ask = { task: null, when: "today", i: Math.floor(Math.random() * askCount(me)) }; $("askText").value = ""; renderAsk(); $("askSheet").hidden = false; }
+async function sendAsk() {
+  const title = askTitleText(); if (!title) return;
+  const r = { id: newId("r"), from_p: me, to_p: other(me), title, chore_id: ask.task ? ask.task.chore_id : null, task_id: ask.task ? ask.task.task_id : null,
+    due: ask.when, msg: askMessage(me, title, ask.when, ask.i), status: "open", created_at: new Date().toISOString() };
+  S.requests[r.id] = r; $("askSheet").hidden = true; render();
+  try { await store.addRequest(r); toast(`${NICK[r.to_p]}에게 부탁을 보냈어요 💌`, false); store.notify({ request: r.id }).catch(() => {}); }
+  catch (e) { fail(e); }
+}
+async function answerRequest(id, ok) {
+  const r = S.requests[id]; if (!r) return;
+  const patch = { status: ok ? "done" : "declined", done_at: new Date().toISOString() };
+  Object.assign(r, patch);
+  let log = null;
+  if (ok) {
+    log = { id: newId("l"), chore_id: r.chore_id || "request", title: r.chore_id ? null : r.title, by: me, date: K(now()), at: Date.now(), task_id: r.task_id || null };
+    S.logs.push(log);
+    const t = r.task_id && S.tasks[r.task_id];
+    if (t && t.status === "todo") Object.assign(t, { status: "done", done_by: me, done_at: patch.done_at });
+    const n = starsOf(me);
+    $("cheerMallang").innerHTML = mallang(me, "happy", 120, "hop");
+    $("cheerMsg").textContent = `${callName(r.from_p)}가 엄청 좋아할 거예요!`;
+    $("cheerPlus").textContent = `${r.title} 완료 · 별 +1 (모두 ${n}개)`;
+    $("cheerUndo").hidden = true; $("cheer").hidden = false;
+  } else toast("괜찮아요, 마음은 전해졌을 거예요 💕", false);
+  render();
+  try {
+    await store.updateRequest(id, patch);
+    if (log) {
+      if (log.task_id && S.tasks[log.task_id]) await store.updateTask(log.task_id, { status: "done", done_by: me, done_at: patch.done_at });
+      await store.addLog(log);
+    }
+    store.notify({ reqReply: id }).catch(() => {});
+  } catch (e) { fail(e); }
+}
+async function cancelRequest(id) {
+  const r = S.requests[id]; if (!r) return;
+  r.status = "canceled"; render();
+  try { await store.updateRequest(id, { status: "canceled" }); } catch (e) { fail(e); }
+}
+
+// ---- 칭찬 스티커 ----
+let praiseLog = null;
+function openPraise(logId) {
+  const l = S.logs.find(x => x.id === logId); if (!l) return;
+  praiseLog = l;
+  $("stSub").textContent = `${l.by}가 한 "${logName(l)}"에 보낼 스티커를 골라요`;
+  $("stGrid").innerHTML = STICKERS.map(s => `<button type="button" data-stk="${s.id}"><span>${s.e}</span><span>${esc(s.t)}</span></button>`).join("");
+  $("stSheet").hidden = false;
+}
+async function sendSticker(kind) {
+  const l = praiseLog; if (!l) return;
+  const row = { id: newId("s"), log_id: l.id, from_p: me, to_p: l.by, kind, created_at: new Date().toISOString() };
+  S.stickers.push(row);
+  $("stSheet").hidden = true; render();
+  toast(`${sticker(kind).e} 칭찬 스티커를 보냈어요!`, false);
+  try { await store.addSticker(row); store.notify({ sticker: row.id }).catch(() => {}); } catch (e) { fail(e); }
+}
+// 받은 스티커는 앱을 열었을 때 한 번 크게 보여줘요
+// 본 스티커는 사람별로 기억해요 (한 폰에서 내리/두리를 바꿔 써도 섞이지 않게)
+const seenKey = () => "seenStickers:" + me;
+const seenList = () => { try { return JSON.parse(localStorage.getItem(seenKey()) || "[]"); } catch (e) { return []; } };
+function markSeen(id) { const l = seenList(); if (!l.includes(id)) l.push(id); try { localStorage.setItem(seenKey(), JSON.stringify(l.slice(-300))); } catch (e) {} }
+function showNewStickers() {
+  if (!$("cheer").hidden) return;
+  const seen = seenList();
+  const fresh = S.stickers.filter(x => x.to_p === me && !seen.includes(x.id)).sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
+  if (!fresh.length) return;
+  const last = fresh[fresh.length - 1];
+  const l = S.logs.find(x => x.id === last.log_id);
+  fresh.forEach(x => markSeen(x.id));
+  const st = sticker(last.kind);
+  $("cheerMallang").innerHTML = `<div class="bigsticker">${st.e}</div>`;
+  $("cheerMsg").textContent = `${callName(last.from_p)}가 칭찬 스티커를 보냈어요!`;
+  $("cheerPlus").textContent = `${st.t}${l ? ` · ${logName(l)}` : ""}${fresh.length > 1 ? ` (외 ${fresh.length - 1}개)` : ""}`;
+  $("cheerUndo").hidden = true; $("cheer").hidden = false;
+}
+
+// ---- 말랑이 만지면 뿅뿅 ----
+const POPS = ["뿅!", "뿅뿅", "말랑~", "히히", "💕", "✨", "뽀잉"];
+document.addEventListener("pointerdown", e => {
+  const m = e.target.closest(".mallang"); if (!m) return;
+  m.classList.remove("boing"); void m.getBoundingClientRect(); m.classList.add("boing");
+  for (let i = 0; i < 2; i++) {
+    const p = document.createElement("span");
+    p.className = "pop"; p.textContent = pick(POPS);
+    p.style.left = e.clientX + "px"; p.style.top = e.clientY + "px";
+    p.style.setProperty("--dx", `${Math.round((Math.random() - .5) * 90)}px`);
+    document.body.appendChild(p); setTimeout(() => p.remove(), 950);
+  }
+  try { navigator.vibrate && navigator.vibrate(12); } catch (x) {}
+});
+document.addEventListener("animationend", e => { if (e.target.classList && e.target.classList.contains("boing")) e.target.classList.remove("boing"); });
+
 function renderToday() {
   const today = now();
   $("today").textContent = `${today.getMonth() + 1}월 ${today.getDate()}일 ${DAYN[today.getDay()]}요일`;
@@ -101,6 +229,8 @@ function renderToday() {
   $("heroMallang").innerHTML = mallang(me, n === 0 ? "happy" : moved ? "worried" : "normal", 112);
   $("greet").textContent = n === 0 ? `${me}야, 오늘 할 일 끝! 푹 쉬어` : `${me}야, 오늘 할 일 ${n}개 남았어`;
   $("starPills").innerHTML = PEOPLE.map(p => `<span class="starpill">${STAR()}${p} ${starsOf(p)}개</span>`).join("");
+  $("askRow").innerHTML = `<button type="button" class="btn ask" id="askOpen">${MAIL} ${esc(NICK[other(me)])}에게 부탁하기</button>`;
+  renderRequests();
 
   // 일요일(토·일) 다음 주 계획 안내
   const nextWk = K(add(thisMonday(), 7));
@@ -139,9 +269,12 @@ function renderToday() {
     `<button type="button" class="btn ghost small" data-done="${esc(t.id)}">미리 했어요</button>`)).join("")
     : `<div class="empty">이번 주에 남은 일이 없어요.</div>`;
 
-  const recent = [...S.logs].sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 6);
-  $("feed").innerHTML = recent.length ? recent.map(l => `<li>${STAR()}${whoChip(l.by)}<span>${esc(chore(l.chore_id).name)}</span><span class="when">${fmtDay(D(l.date))}</span></li>`).join("")
-    : `<li>아직 모은 별이 없어요. 첫 번째 별의 주인공은 누구?</li>`;
+  const recent = [...S.logs].sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 8);
+  $("feed").innerHTML = recent.length ? recent.map(l => {
+    const got = S.stickers.filter(x => x.log_id === l.id).map(x => sticker(x.kind).e).join("");
+    const btn = l.by !== me ? `<button type="button" class="btn ghost small" data-praise="${esc(l.id)}">칭찬하기</button>` : "";
+    return `<li>${STAR()}${whoChip(l.by)}<span>${esc(logName(l))}</span>${got ? `<span class="stk" aria-label="받은 스티커">${got}</span>` : ""}<span class="when">${fmtDay(D(l.date))}</span>${btn}</li>`;
+  }).join("") : `<li>아직 모은 별이 없어요. 첫 번째 별의 주인공은 누구?</li>`;
   $("rules").innerHTML = RULES.map(r => `<li>${esc(r)}</li>`).join("");
 }
 
@@ -226,7 +359,7 @@ function cheer(c) {
   $("cheerMallang").innerHTML = mallang(me, "happy", 120, "hop");
   $("cheerMsg").textContent = n % 10 === 0 ? `별 ${n}개 달성! ${pick(PRAISE)}` : pick(PRAISE);
   $("cheerPlus").textContent = `${c.name} 완료 · 별 +1 (모두 ${n}개)`;
-  $("cheer").hidden = false; $("cheerOk").focus();
+  $("cheerUndo").hidden = false; $("cheer").hidden = false; $("cheerOk").focus();
 }
 async function complete(taskId, choreId) {
   const t = taskId ? S.tasks[taskId] : null;
@@ -239,6 +372,8 @@ async function complete(taskId, choreId) {
   try {
     if (t) await store.updateTask(t.id, { status: "done", done_by: me, done_at: t.done_at });
     await store.addLog(log);
+    // 상대에게 "○○가 ○○을 했어요!" 알림 (되돌리기 시간을 조금 기다렸다가)
+    setTimeout(() => { if (S.logs.some(x => x.id === log.id)) store.notify({ did: log.id }).catch(() => {}); }, 8000);
   } catch (e) { fail(e); }
 }
 async function postpone(taskId) {
@@ -346,7 +481,7 @@ async function enablePush() {
   refreshPushStatus();
 }
 async function testPush() {
-  try { const sub = await (await navigator.serviceWorker.ready).pushManager.getSubscription(); await store.testPush(sub.endpoint); toast("테스트 알림을 보냈어요", false); }
+  try { const sub = await (await navigator.serviceWorker.ready).pushManager.getSubscription(); await store.notify({ test: sub.endpoint }); toast("테스트 알림을 보냈어요", false); }
   catch (e) { fail(e); }
 }
 
@@ -370,6 +505,19 @@ function render() {
 
 document.addEventListener("click", e => {
   const el = e.target.closest("button"); if (!el) return;
+  if (el.id === "askOpen") return openAsk();
+  if (el.dataset.asktask) {
+    const t = S.tasks[el.dataset.asktask];
+    ask.task = ask.task && ask.task.task_id === t.id ? null : { task_id: t.id, chore_id: t.chore_id, title: chore(t.chore_id).name };
+    if (ask.task) $("askText").value = "";
+    return renderAsk();
+  }
+  if (el.dataset.when) { ask.when = el.dataset.when; return renderAsk(); }
+  if (el.dataset.reqdone) return answerRequest(el.dataset.reqdone, true);
+  if (el.dataset.reqno) return answerRequest(el.dataset.reqno, false);
+  if (el.dataset.reqcancel) return cancelRequest(el.dataset.reqcancel);
+  if (el.dataset.praise) return openPraise(el.dataset.praise);
+  if (el.dataset.stk) return sendSticker(el.dataset.stk);
   if (el.dataset.done) return complete(el.dataset.done);
   if (el.dataset.chore) return complete(null, el.dataset.chore);
   if (el.dataset.later) return postpone(el.dataset.later);
@@ -387,7 +535,12 @@ document.addEventListener("click", e => {
 $("defaults").addEventListener("input", () => { $("defaults").dataset.dirty = "1"; });
 $("undoBtn").addEventListener("click", doUndo);
 $("cheerUndo").addEventListener("click", doUndo);
-$("cheerOk").addEventListener("click", () => { $("cheer").hidden = true; });
+$("cheerOk").addEventListener("click", () => { $("cheer").hidden = true; showNewStickers(); });
+$("askText").addEventListener("input", () => { if ($("askText").value.trim()) ask.task = null; renderAsk(); });
+$("askReroll").addEventListener("click", () => { ask.i++; renderAsk(); });
+$("askSend").addEventListener("click", sendAsk);
+$("askClose").addEventListener("click", () => { $("askSheet").hidden = true; });
+$("stClose").addEventListener("click", () => { $("stSheet").hidden = true; });
 $("planConfirm").addEventListener("click", confirmPlan);
 $("saveDefaults").addEventListener("click", saveDefaults);
 $("pushOn").addEventListener("click", enablePush);
@@ -397,9 +550,11 @@ window.addEventListener("hashchange", route);
 
 async function reload() {
   const data = await store.load();
-  S = { household: data.household, tasks: Object.fromEntries(data.tasks.map(t => [t.id, t])), logs: data.logs, weeks: Object.fromEntries(data.weeks.map(w => [w.monday, w])) };
+  S = { household: data.household, tasks: Object.fromEntries(data.tasks.map(t => [t.id, t])), logs: data.logs, weeks: Object.fromEntries(data.weeks.map(w => [w.monday, w])),
+    requests: Object.fromEntries((data.requests || []).map(r => [r.id, r])), stickers: data.stickers || [] };
   await ensureWeek(thisMonday());
   render();
+  showNewStickers();
 }
 
 (async () => {

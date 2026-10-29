@@ -27,6 +27,11 @@
         <div class="bubble"><h1 id="greet">안녕!</h1><p id="today"></p></div>
       </header>
       <div class="stars" id="starPills"></div>
+      <div class="btnrow" id="askRow"></div>
+      <section id="inboxSec" hidden>
+        <div class="head"><h2 id="inboxTitle">부탁 받은 일</h2></div>
+        <div class="list" id="inbox"></div>
+      </section>
       <div id="planCallout"></div>
       <div class="banner" id="weekBanner" hidden></div>
 
@@ -46,8 +51,14 @@
         <div class="list" id="rest"></div>
       </section>
 
+      <section id="sentSec" hidden>
+        <div class="head"><h2>내가 부탁한 일</h2></div>
+        <ul class="feed card" id="sent"></ul>
+      </section>
+
       <section>
         <div class="head"><h2>별 모으기</h2><span class="count">일 하나에 별 하나</span></div>
+        <p class="sub">상대가 한 일에 칭찬 스티커를 보내 보세요.</p>
         <ul class="feed card" id="feed"></ul>
       </section>
 
@@ -133,6 +144,27 @@
     <div class="msg" id="cheerMsg">잘했어요!</div>
     <div class="plus" id="cheerPlus"></div>
     <div class="row2"><button type="button" class="btn" id="cheerOk">고마워!</button><button type="button" class="btn ghost small" id="cheerUndo">실수로 눌렀어요</button></div>
+  </div>
+</div>
+<div class="cheer" id="askSheet" hidden role="dialog" aria-modal="true" aria-labelledby="askHead">
+  <div class="box sheet">
+    <h2 id="askHead">부탁하기</h2>
+    <p class="sub">무엇을 부탁할까요?</p>
+    <div class="pickrow" id="askTasks"></div>
+    <input type="text" id="askText" maxlength="40" placeholder="직접 쓰기 (예: 택배 상자 버리기)" aria-label="부탁할 일 직접 쓰기">
+    <p class="sub">언제까지?</p>
+    <div class="seg" id="askWhen"><button type="button" data-when="today">오늘</button><button type="button" data-when="tomorrow">내일</button><button type="button" data-when="week">이번 주 안에</button></div>
+    <div class="reqmsg" id="askPreview"></div>
+    <div class="row2"><button type="button" class="btn ghost small" id="askReroll">다른 말투로</button></div>
+    <div class="row2"><button type="button" class="btn" id="askSend">부탁 보내기</button><button type="button" class="btn ghost small" id="askClose">닫기</button></div>
+  </div>
+</div>
+<div class="cheer" id="stSheet" hidden role="dialog" aria-modal="true" aria-labelledby="stHead">
+  <div class="box">
+    <h2 id="stHead">칭찬 스티커 보내기</h2>
+    <p class="sub" id="stSub"></p>
+    <div class="stgrid" id="stGrid"></div>
+    <button type="button" class="btn ghost small" id="stClose">닫기</button>
   </div>
 </div>
 <div class="toast" id="toast" hidden><span id="toastMsg"></span><button type="button" id="undoBtn">되돌리기</button></div>

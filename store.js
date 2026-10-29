@@ -15,15 +15,18 @@ function supabaseStore(cfg) {
     kind: "server",
     async load() {
       const since = K(add(mondayOf(new Date()), -14));
-      const [hh, tasks, logs, weeks] = await Promise.all([
+      const recent = new Date(Date.now() - 14 * 864e5).toISOString();
+      const [hh, tasks, logs, weeks, requests, stickers] = await Promise.all([
         sb.from("household").select("*").eq("id", 1).maybeSingle().then(must),
         sb.from("tasks").select("*").or(`status.eq.todo,day.gte.${since}`).then(must),
         sb.from("logs").select("*").then(must),
         sb.from("weeks").select("*").then(must),
+        sb.from("requests").select("*").or(`status.eq.open,created_at.gte.${recent}`).then(must),
+        sb.from("stickers").select("*").then(must),
       ]);
       let household = hh;
       if (!household) { household = seed(); await sb.from("household").upsert(household).then(must); }
-      return { household, tasks, logs, weeks };
+      return { household, tasks, logs, weeks, requests, stickers };
     },
     upsertTasks: rows => sb.from("tasks").upsert(rows, { onConflict: "id", ignoreDuplicates: true }).then(must),
     updateTask: (id, patch) => sb.from("tasks").update(patch).eq("id", id).then(must),
@@ -36,15 +39,19 @@ function supabaseStore(cfg) {
     publicKey: () => sb.from("public_config").select("value").eq("key", "vapid_public").maybeSingle().then(must).then(r => r && r.value),
     saveSub: row => sb.from("push_subs").upsert(row).then(must),
     delSub: endpoint => sb.from("push_subs").delete().eq("endpoint", endpoint).then(must),
-    testPush: endpoint => fetch(`${cfg.supabaseUrl}/functions/v1/tick`, {
+    addRequest: row => sb.from("requests").insert(row).then(must),
+    updateRequest: (id, patch) => sb.from("requests").update(patch).eq("id", id).then(must),
+    addSticker: row => sb.from("stickers").insert(row).then(must),
+    // 알림 서버에 바로 보내 달라고 부탁해요 (테스트 알림, 부탁 알림, 부탁 답장)
+    notify: body => fetch(`${cfg.supabaseUrl}/functions/v1/tick`, {
       method: "POST", headers: { "Content-Type": "application/json", apikey: cfg.supabaseAnonKey, Authorization: `Bearer ${cfg.supabaseAnonKey}` },
-      body: JSON.stringify({ test: endpoint }),
-    }).then(r => { if (!r.ok) throw new Error("test " + r.status); }),
+      body: JSON.stringify(body),
+    }).then(r => { if (!r.ok) throw new Error("notify " + r.status); }),
     subscribe(onChange) {
       let t = null;
       const ping = () => { clearTimeout(t); t = setTimeout(onChange, 250); };
       const ch = sb.channel("house");
-      for (const table of ["household", "tasks", "logs", "weeks"]) ch.on("postgres_changes", { event: "*", schema: "public", table }, ping);
+      for (const table of ["household", "tasks", "logs", "weeks", "requests", "stickers"]) ch.on("postgres_changes", { event: "*", schema: "public", table }, ping);
       ch.subscribe();
       document.addEventListener("visibilitychange", () => { if (!document.hidden) ping(); });
     },
@@ -56,11 +63,13 @@ function localStore() {
   let db;
   try { db = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { db = null; }
   if (!db) db = { household: seed(), tasks: {}, logs: {}, weeks: {} };
+  db.requests = db.requests || {};
+  db.stickers = db.stickers || {};
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) {} };
   const ok = v => Promise.resolve(v);
   return {
     kind: "local",
-    load: () => ok({ household: db.household, tasks: Object.values(db.tasks), logs: Object.values(db.logs), weeks: Object.values(db.weeks) }),
+    load: () => ok({ household: db.household, tasks: Object.values(db.tasks), logs: Object.values(db.logs), weeks: Object.values(db.weeks), requests: Object.values(db.requests), stickers: Object.values(db.stickers) }),
     upsertTasks: rows => { rows.forEach(r => { if (!db.tasks[r.id]) db.tasks[r.id] = r; }); save(); return ok(); },
     updateTask: (id, patch) => { if (db.tasks[id]) Object.assign(db.tasks[id], patch); save(); return ok(); },
     putTask: row => { db.tasks[row.id] = row; save(); return ok(); },
@@ -70,7 +79,10 @@ function localStore() {
     saveHousehold: h => { db.household = h; save(); return ok(); },
     setWeek: row => { db.weeks[row.monday] = row; save(); return ok(); },
     publicKey: () => ok(null),
-    saveSub: () => ok(), delSub: () => ok(), testPush: () => Promise.reject(new Error("local")),
+    addRequest: row => { db.requests[row.id] = row; save(); return ok(); },
+    updateRequest: (id, patch) => { if (db.requests[id]) Object.assign(db.requests[id], patch); save(); return ok(); },
+    addSticker: row => { db.stickers[row.id] = row; save(); return ok(); },
+    saveSub: () => ok(), delSub: () => ok(), notify: () => Promise.reject(new Error("local")),
     subscribe() {},
   };
 }

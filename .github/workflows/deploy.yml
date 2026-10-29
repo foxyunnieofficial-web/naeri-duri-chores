@@ -56,4 +56,5 @@ jobs:
           ANON=$(grep -oE 'eyJ[A-Za-z0-9._-]+' config.js | head -1)
           echo "공개 설정:"; curl -sS "https://$REF.supabase.co/rest/v1/public_config?select=key" -H "apikey: $ANON" -H "Authorization: Bearer $ANON"; echo
           echo "주간 계획 수:"; curl -sS "https://$REF.supabase.co/rest/v1/weeks?select=monday,planned" -H "apikey: $ANON" -H "Authorization: Bearer $ANON"; echo
+          echo "부탁·스티커 테이블:"; curl -sS "https://$REF.supabase.co/rest/v1/requests?select=id&limit=1" -H "apikey: $ANON" -H "Authorization: Bearer $ANON"; curl -sS "https://$REF.supabase.co/rest/v1/stickers?select=id&limit=1" -H "apikey: $ANON" -H "Authorization: Bearer $ANON"; echo
           echo "예약 작업:"; curl -sS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' -d '{"query":"select jobname, schedule, active from cron.job"}'; echo

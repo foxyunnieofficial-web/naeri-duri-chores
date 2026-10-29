@@ -83,3 +83,78 @@ export function nudgeText(c, count) {
   if (count === 2) return `벌써 두 번 미뤘어요. ${c.mins}분밖에 안 걸려요!`;
   return `${count}번째 미루는 중… 딱 ${c.mins}분만 해볼까요? 말랑이가 옆에서 응원할게요`;
 }
+
+// ---- 서로에게 부탁하기 ----
+// 받는 사람을 부르는 호칭 (두리가 보내면 "언니", 내리가 보내면 "세계최고귀염둥이두리")
+export const NICK = { "내리": "언니", "두리": "세계최고귀염둥이두리" };
+const ASK = {
+  // 두리 → 언니
+  "두리": [
+    "{n}~~~!!! 💕 우주 최강 멋쟁이 우리 {n}! {w} {t} 한 번만 해주면 안 돼요? 해주면 {n} 평생 업고 다닐게요 🥺💖",
+    "세상에서 제일 착하고 예쁘고 똑똑한 {n}… 🥹 {w} {t} 부탁드려도 될까요? {n} 없으면 나 진짜 못 살아 💗💗",
+    "{n} 사랑해 사랑해 사랑해 💘 (세 번 말했으니까) {w} {t} 해주면 안 될까용? 뿌잉뿌잉 🐣",
+    "똑똑~ {n}의 영원한 팬 두리예요 🙋‍♀️ {w} {t} 해주시면 오늘부터 {n} 팬클럽 회장 할게요 📣💕",
+    "{n}!!! 지구에서 제일 다정한 {n}!!! {w} {t} 부탁해도 돼요? 해주면 하트 백만 개 드림 💖💖💖",
+    "{n}… 나 {n}가 세상에서 제일 좋아 🥺 그래서 말인데… {w} {t} 해줄 수 있어요? 헤헤 사랑해요 💞",
+  ],
+  // 내리 → 세계최고귀염둥이두리
+  "내리": [
+    "{n}야~~~ 🌟 오늘도 귀여움 폭발한 우리 {n}! {w} {t} 부탁해도 될까? 해주면 언니가 볼 꼬집꼬집 해줄게 💖",
+    "세상에… 이렇게 귀여운 생명체가 내 동생이라니 🥹 {n}야, {w} {t} 해줄 수 있어? 해주면 언니가 우주만큼 사랑해줄게 🌌💕",
+    "{n}야 {n}야 우리 {n}야 💗 {w} {t} 한 번만 부탁할게! 너 없으면 이 집 안 돌아가 진짜 😭💞",
+    "📢 긴급 속보: {n}, 오늘도 귀여움 신기록 경신! 그런 {n}에게 {w} {t} 부탁이 도착했습니다 💌 해주면 언니가 맛있는 거 쏜다 🍰",
+    "말랑말랑 귀염뽀짝 {n}야~ 🍡 {w} {t} 해주면 언니가 평생 네 편 할게! 사랑해 쪽 💋",
+    "{n}야, 너는 존재 자체가 효도야 🥹✨ 근데 효도 하나만 더… {w} {t} 부탁해도 될까? 사랑해 💕",
+  ],
+};
+const THANKS = {
+  // 해준 사람이 두리 → 부탁한 언니에게
+  "두리": [
+    "{n}! 부탁한 {t} 두리가 해냈어요 💪✨ 칭찬해주세요 🥺💕",
+    "{n}~ {t} 끝! 이제 {n}는 푹 쉬어요 🛋️💖 사랑해요!",
+    "미션 완료 🫡 {t} 다 했어요! {n} 웃는 얼굴 보려고 열심히 했어요 💗",
+  ],
+  // 해준 사람이 내리 → 부탁한 세계최고귀염둥이두리에게
+  "내리": [
+    "{n}야, 부탁한 {t} 언니가 다 해놨어! 🫶 고맙다는 말 대신 뽀뽀 💋",
+    "{n}의 부탁이라면 언제든지 💪 {t} 끝냈어! 귀여운 게 죄다 진짜 💖",
+    "짜잔~ {t} 완료 ✨ {n}야 오늘도 귀여워줘서 고마워 💕",
+  ],
+};
+const SORRY = {
+  "두리": ["{n} 미안해요 🥺 지금은 {t} 못 할 것 같아요… 대신 사랑은 듬뿍 보낼게요 💕", "{n}… 오늘은 {t} 어려울 것 같아요 😢 다음엔 꼭 해줄게요! 사랑해요 💗"],
+  "내리": ["{n}야, 미안 🥺 지금은 {t} 어려울 것 같아! 다음엔 꼭 해줄게 💗", "{n}야 언니가 오늘은 {t} 힘들 것 같아 😢 대신 꼭 안아줄게 🤗💕"],
+};
+const fill = (tpl, n, t, w = "") => tpl.replaceAll("{n}", n).replaceAll("{t}", t).replaceAll("{w}", w).replace(/\s+/g, " ").trim();
+export const WHEN = { today: "오늘", tomorrow: "내일", week: "이번 주 안에" };
+export const askCount = from => ASK[from].length;
+export function askMessage(from, task, when, i = 0) {
+  const list = ASK[from];
+  return fill(list[((i % list.length) + list.length) % list.length], NICK[other(from)], task, WHEN[when] || "");
+}
+export const askTitle = from => (from === "두리" ? "두리가 언니에게 부탁했어요 💌" : "언니가 세계최고귀염둥이두리에게 부탁했어요 💌");
+// doer = 부탁받은 사람, 메시지는 부탁한 사람에게 가요
+export function replyMessage(doer, task, ok) {
+  const list = (ok ? THANKS : SORRY)[doer];
+  return fill(list[Math.floor(Math.random() * list.length)], NICK[other(doer)], task);
+}
+export const replyTitle = (doer, ok) => ok ? `${doer === "두리" ? "두리" : "언니"}가 부탁을 들어줬어요 💖` : "지금은 어렵대요 🥺";
+
+// ---- 했어요 알림과 칭찬 스티커 ----
+// 받침이 있으면 "을", 없으면 "를"
+export const eulReul = word => {
+  const c = word.charCodeAt(word.length - 1);
+  return c >= 0xac00 && c <= 0xd7a3 && (c - 0xac00) % 28 !== 0 ? "을" : "를";
+};
+export const didTitle = (by, choreName) => `${by}가 ${choreName}${eulReul(choreName)} 했어요!`;
+export const STICKERS = [
+  { id: "crown", e: "👑", t: "최고!" },
+  { id: "heart", e: "💖", t: "사랑해" },
+  { id: "hundred", e: "💯", t: "완벽해" },
+  { id: "clap", e: "👏", t: "잘했어" },
+  { id: "sparkle", e: "✨", t: "반짝반짝" },
+  { id: "hug", e: "🤗", t: "고마워" },
+];
+export const sticker = id => STICKERS.find(s => s.id === id) || STICKERS[0];
+// 받는 사람 입장에서 보낸 사람 부르기
+export const callName = from => (from === "내리" ? "언니" : "두리");

@@ -7,12 +7,13 @@ import webpush from "npm:web-push@3.6.7";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import {
   DEFAULT_CHORES, DEFAULT_PREFS, PEOPLE, K, add, mondayOf, generateWeek, isMine, nudgeText,
+  askTitle, replyMessage, replyTitle, didTitle, sticker, callName, other,
 } from "../_shared/plan.js";
 
 const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 const WINDOW_MIN = 60; // 정해진 시각부터 이 시간 안에만 보내요 (늦게 켜져도 한참 지난 알림은 안 보냄)
 
-type Payload = { title: string; body: string; tag: string; url?: string; person?: string; tasks?: { id: string | null; chore_id: string; pc?: number }[] };
+type Payload = { title: string; body: string; tag: string; url?: string; person?: string; kind?: string; log?: string; from?: string; tasks?: { id: string | null; chore_id: string; pc?: number }[] };
 
 async function kv(table: string, key: string) {
   const { data } = await sb.from(table).select("value").eq("key", key).maybeSingle();
@@ -68,6 +69,45 @@ Deno.serve(async req => {
     const n = await sendTo({ endpoint: body.test }, { title: "말랑이 테스트 알림", body: "알림이 잘 와요! 이제 할 일이 있을 때 알려줄게요.", tag: "test", url: "./#my" });
     return Response.json({ sent: n });
   }
+  // 서로에게 부탁하기: 부탁이 오면 받는 사람에게, 답하면 부탁한 사람에게
+  if (body.request || body.reqReply) {
+    const id = String(body.request || body.reqReply);
+    const { data: r } = await sb.from("requests").select("*").eq("id", id).maybeSingle();
+    if (!r) return Response.json({ sent: 0 }, { status: 404 });
+    if (body.request) {
+      if (!(await once(`req:${id}:ask`))) return Response.json({ sent: 0, dup: true });
+      const n = await sendTo({ person: r.to_p }, { title: askTitle(r.from_p), body: r.msg, tag: `req-${id}`, url: "./#today" });
+      return Response.json({ sent: n });
+    }
+    if (r.status === "open" || !(await once(`req:${id}:${r.status}`))) return Response.json({ sent: 0 });
+    const ok = r.status === "done";
+    const n = await sendTo({ person: r.from_p }, { title: replyTitle(r.to_p, ok), body: replyMessage(r.to_p, r.title, ok), tag: `req-${id}`, url: "./#today" });
+    return Response.json({ sent: n });
+  }
+
+  // 했어요 → 상대에게 알림 (안드로이드는 알림에서 바로 스티커 보내기)
+  if (body.did) {
+    const id = String(body.did);
+    const { data: l } = await sb.from("logs").select("*").eq("id", id).maybeSingle();
+    if (!l || !(await once(`did:${id}`))) return Response.json({ sent: 0 });
+    const { data: hh } = await sb.from("household").select("chores").eq("id", 1).maybeSingle();
+    const c = ((hh?.chores ?? DEFAULT_CHORES) as typeof DEFAULT_CHORES).find(x => x.id === l.chore_id);
+    const n = await sendTo({ person: other(l.by) }, {
+      title: didTitle(l.by, c?.name ?? l.chore_id), body: "칭찬 스티커를 보내 주세요 ✨", tag: `did-${id}`, url: "./#today",
+      kind: "did", log: id, from: l.by,
+    } as Payload);
+    return Response.json({ sent: n });
+  }
+  // 칭찬 스티커 → 일 한 사람에게
+  if (body.sticker) {
+    const id = String(body.sticker);
+    const { data: st } = await sb.from("stickers").select("*").eq("id", id).maybeSingle();
+    if (!st || !(await once(`st:${id}`))) return Response.json({ sent: 0 });
+    const s = sticker(st.kind);
+    const n = await sendTo({ person: st.to_p }, { title: `${callName(st.from_p)}가 칭찬 스티커를 보냈어요!`, body: `${s.e} ${s.t}`, tag: `st-${id}`, url: "./#today" });
+    return Response.json({ sent: n });
+  }
+
   const secret = await kv("app_secrets", "cron");
   if (!secret || req.headers.get("x-cron-secret") !== secret) return new Response("forbidden", { status: 403 });
 

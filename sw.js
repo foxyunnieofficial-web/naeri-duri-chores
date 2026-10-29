@@ -3,7 +3,7 @@ importScripts("config.js");
 const CFG = self.APP_CONFIG || {};
 const PRAISE = ["잘했어요!", "최고!", "역시 너밖에 없어", "오늘도 해냈다!", "집이 반짝반짝해졌어요", "말랑이가 감동했어요", "이 집의 자랑!", "해낼 줄 알았어!"];
 const SHELL = ["./", "index.html", "styles.css", "app.js", "store.js", "shared/plan.js", "config.js", "manifest.webmanifest", "icons/icon-192.png"];
-const CACHE = "nd-v1";
+const CACHE = "nd-v2";
 
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).catch(() => {})); self.skipWaiting(); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k))))); self.clients.claim(); });
@@ -19,26 +19,38 @@ self.addEventListener("push", e => {
   try { d = e.data.json(); } catch (x) { d = { title: "내리두리 집안일", body: e.data ? e.data.text() : "" }; }
   const opts = {
     body: d.body, tag: d.tag, renotify: true, icon: "icons/icon-192.png", badge: "icons/badge-96.png",
-    data: { url: d.url || "./#today", tasks: d.tasks || [], person: d.person },
+    data: { url: d.url || "./#today", tasks: d.tasks || [], person: d.person, kind: d.kind, log: d.log, from: d.from },
   };
   if (d.tasks && d.tasks.length) opts.actions = [{ action: "done", title: "했어요 ⭐" }, { action: "later", title: "내일로 미루기" }];
+  if (d.kind === "did") opts.actions = [{ action: "st:crown", title: "👑 최고!" }, { action: "st:heart", title: "💖 사랑해" }];
   e.waitUntil(self.registration.showNotification(d.title || "내리두리 집안일", opts));
 });
 
 const rest = (path, init) => fetch(`${CFG.supabaseUrl}/rest/v1/${path}`, {
   ...init, headers: { apikey: CFG.supabaseAnonKey, Authorization: `Bearer ${CFG.supabaseAnonKey}`, "Content-Type": "application/json", Prefer: "return=minimal" },
 });
+const callServer = body => fetch(`${CFG.supabaseUrl}/functions/v1/tick`, {
+  method: "POST", headers: { apikey: CFG.supabaseAnonKey, Authorization: `Bearer ${CFG.supabaseAnonKey}`, "Content-Type": "application/json" }, body: JSON.stringify(body),
+}).catch(() => {});
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 self.addEventListener("notificationclick", e => {
   const n = e.notification; n.close();
-  const { tasks = [], person, url } = n.data || {};
+  const { tasks = [], person, url, kind, log, from } = n.data || {};
   const work = async () => {
+    if (kind === "did" && e.action && e.action.startsWith("st:")) {
+      const id = "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      await rest("stickers", { method: "POST", body: JSON.stringify({ id, log_id: log, from_p: person, to_p: from, kind: e.action.slice(3) }) });
+      await callServer({ sticker: id });
+      return self.registration.showNotification("칭찬 스티커를 보냈어요 💌", { body: "말랑이가 전해줄게요!", tag: "cheer", icon: "icons/icon-192.png" });
+    }
     if (e.action === "done" && tasks.length) {
       for (const t of tasks) {
         const at = Date.now();
+        const lid = "l" + at.toString(36) + Math.random().toString(36).slice(2, 6);
         if (t.id) await rest(`tasks?id=eq.${encodeURIComponent(t.id)}`, { method: "PATCH", body: JSON.stringify({ status: "done", done_by: person, done_at: new Date().toISOString() }) });
-        await rest("logs", { method: "POST", body: JSON.stringify({ id: "l" + at.toString(36) + Math.random().toString(36).slice(2, 6), chore_id: t.chore_id, by: person, date: ymd(new Date()), at, task_id: t.id || null }) });
+        await rest("logs", { method: "POST", body: JSON.stringify({ id: lid, chore_id: t.chore_id, by: person, date: ymd(new Date()), at, task_id: t.id || null }) });
+        await callServer({ did: lid });
       }
       return self.registration.showNotification(PRAISE[Math.floor(Math.random() * PRAISE.length)], { body: `별 +${tasks.length} 모았어요`, tag: "cheer", icon: "icons/icon-192.png" });
     }
