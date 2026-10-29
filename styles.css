@@ -12,6 +12,7 @@
   --star: #ffc93c;
   --late: #d8443a; --late-soft: #ffe3e0;
   --cheek: #ff8fa3;
+  --mom-soft: #efe7ff; --mom-deep: #7650d8;
   --ink: #3b3350;
   --display: "Jua", "IBM Plex Sans KR", system-ui, sans-serif;
   --body: "IBM Plex Sans KR", system-ui, -apple-system, "Apple SD Gothic Neo", sans-serif;
@@ -20,12 +21,12 @@
   --bg: #1b1726; --surface: #262135; --line: #3a3350; --fg: #efeaf9; --muted: #a79fbe;
   --naeri-deep: #ffab98; --naeri-soft: #43282a; --duri-deep: #9ccbff; --duri-soft: #1f3048;
   --both-deep: #8fdcaa; --both-soft: #1e3628; --alt-deep: #f0c36a; --alt-soft: #3d311a;
-  --late: #ff8f85; --late-soft: #4a2226; --ink: #2a2338; color-scheme: dark } }
+  --late: #ff8f85; --late-soft: #4a2226; --ink: #2a2338; --mom-soft: #2e2547; --mom-deep: #c8b4ff; color-scheme: dark } }
 :root[data-theme="dark"] {
   --bg: #1b1726; --surface: #262135; --line: #3a3350; --fg: #efeaf9; --muted: #a79fbe;
   --naeri-deep: #ffab98; --naeri-soft: #43282a; --duri-deep: #9ccbff; --duri-soft: #1f3048;
   --both-deep: #8fdcaa; --both-soft: #1e3628; --alt-deep: #f0c36a; --alt-soft: #3d311a;
-  --late: #ff8f85; --late-soft: #4a2226; --ink: #2a2338; color-scheme: dark }
+  --late: #ff8f85; --late-soft: #4a2226; --ink: #2a2338; --mom-soft: #2e2547; --mom-deep: #c8b4ff; color-scheme: dark }
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -161,11 +162,12 @@ html, body { min-height: 100%; }
 .days[data-who="같이"] button[aria-pressed="true"] { border-color: var(--both); background: var(--both-soft); color: var(--both-deep); }
 .days button:disabled { cursor: default; opacity: .55; }
 .days small { display: block; font-size: 10.5px; font-weight: 500; }
-.load { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; align-items: end; height: 92px; padding: 10px 12px 8px; }
-.load .col { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.load { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; align-items: end; padding: 12px 12px 10px; }
+.load .barwrap { height: 52px; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
+.load .col { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .load .bar { width: 70%; border-radius: 8px 8px 4px 4px; background: var(--naeri); min-height: 3px; }
 :root[data-me="두리"] .load .bar { background: var(--duri); }
-.load .col.today span:last-child { color: var(--fg); font-weight: 700; }
+.load .col.today .dayname { color: var(--fg); font-weight: 700; }
 .donechip { font-size: 12px; font-weight: 600; color: var(--both-deep); }
 
 .field { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; font-size: 14px; }
@@ -210,3 +212,14 @@ html, body { min-height: 100%; }
   @keyframes pop { from { opacity: 1; transform: translate(-50%, -50%) scale(.6); } to { opacity: 0; transform: translate(calc(-50% + var(--dx)), calc(-50% - 70px)) scale(1.25); } }
 }
 @media (prefers-reduced-motion: reduce) { .pop { opacity: 0; } }
+
+/* 엄마, 꾸미기 */
+.who { grid-template-columns: repeat(3, 1fr); }
+.who button[data-p="엄마"][aria-pressed="true"] { border-color: #b99cff; background: var(--mom-soft); color: var(--mom-deep); }
+#msgText { font: inherit; padding: 10px 12px; border-radius: 14px; border: 2px solid var(--line); background: var(--bg); color: var(--fg); width: 100%; resize: vertical; }
+.lookprev { display: flex; justify-content: center; }
+.pickrow .swatch { width: 34px; height: 34px; padding: 0; border-radius: 50%; }
+.pickrow .swatch[aria-pressed="true"] { outline: 3px solid var(--fg); outline-offset: 2px; }
+.card.mom { border-color: #b99cff; }
+.feed .heart { font-size: 13px; color: var(--muted); }
+.c-엄마 { background: var(--mom-soft); color: var(--mom-deep); }

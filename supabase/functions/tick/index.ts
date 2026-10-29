@@ -7,7 +7,7 @@ import webpush from "npm:web-push@3.6.7";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import {
   DEFAULT_CHORES, DEFAULT_PREFS, PEOPLE, K, add, mondayOf, generateWeek, isMine, nudgeText,
-  askTitle, replyMessage, replyTitle, didTitle, sticker, callName, other,
+  askTitle, replyMessage, replyTitle, didTitle, sticker, callName, other, MOM,
 } from "../_shared/plan.js";
 
 const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
@@ -92,10 +92,12 @@ Deno.serve(async req => {
     if (!l || !(await once(`did:${id}`))) return Response.json({ sent: 0 });
     const { data: hh } = await sb.from("household").select("chores").eq("id", 1).maybeSingle();
     const c = ((hh?.chores ?? DEFAULT_CHORES) as typeof DEFAULT_CHORES).find(x => x.id === l.chore_id);
-    const n = await sendTo({ person: other(l.by) }, {
-      title: didTitle(l.by, c?.name ?? l.chore_id), body: "칭찬 스티커를 보내 주세요 ✨", tag: `did-${id}`, url: "./#today",
+    const payload: Payload = {
+      title: didTitle(l.by, l.title ?? c?.name ?? l.chore_id), body: "칭찬 스티커를 보내 주세요 ✨", tag: `did-${id}`, url: "./#today",
       kind: "did", log: id, from: l.by,
-    } as Payload);
+    };
+    // 같이 사는 상대와 엄마에게
+    const n = (await sendTo({ person: other(l.by) }, payload)) + (await sendTo({ person: MOM }, payload));
     return Response.json({ sent: n });
   }
   // 칭찬 스티커 → 일 한 사람에게
@@ -105,6 +107,17 @@ Deno.serve(async req => {
     if (!st || !(await once(`st:${id}`))) return Response.json({ sent: 0 });
     const s = sticker(st.kind);
     const n = await sendTo({ person: st.to_p }, { title: `${callName(st.from_p)}가 칭찬 스티커를 보냈어요!`, body: `${s.e} ${s.t}`, tag: `st-${id}`, url: "./#today" });
+    return Response.json({ sent: n });
+  }
+
+  // 엄마 메시지 → 받는 딸에게, 하트 → 엄마에게
+  if (body.momMsg || body.heart) {
+    const id = String(body.momMsg || body.heart);
+    const { data: m } = await sb.from("messages").select("*").eq("id", id).maybeSingle();
+    if (!m || !(await once(`msg:${id}:${body.momMsg ? "send" : "heart"}`))) return Response.json({ sent: 0 });
+    const n = body.momMsg
+      ? await sendTo({ person: m.to_p }, { title: "엄마가 메시지를 보냈어요 💌", body: m.msg, tag: `msg-${id}`, url: "./#today" })
+      : await sendTo({ person: m.from_p }, { title: `${m.to_p}가 엄마 메시지에 하트를 보냈어요 💖`, body: m.msg.slice(0, 60), tag: `heart-${id}`, url: "./#today" });
     return Response.json({ sent: n });
   }
 

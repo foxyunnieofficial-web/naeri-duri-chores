@@ -157,4 +157,42 @@ export const STICKERS = [
 ];
 export const sticker = id => STICKERS.find(s => s.id === id) || STICKERS[0];
 // 받는 사람 입장에서 보낸 사람 부르기
-export const callName = from => (from === "내리" ? "언니" : "두리");
+export const callName = from => (from === "내리" ? "언니" : from === "엄마" ? "엄마" : "두리");
+
+// ---- 엄마 ----
+export const MOM = "엄마";
+const MOM_OPEN = ["우리 {n}야~", "사랑하는 우리 {n}에게 💌", "{n}야, 엄마야 😊", "세상에서 제일 예쁜 우리 {n}!", "엄마 보물 {n}야", "우리 집 자랑 {n}야~", "{n}야 잘 지내고 있지?"];
+const MOM_BODY = [
+  "오늘도 밥은 잘 챙겨 먹었니? 바빠도 끼니는 꼭 챙겨 🍚",
+  "{s}랑 집안일 나눠서 척척 하는 거 보면 엄마는 너무 뿌듯해",
+  "요즘 많이 바쁘지? 너무 무리하지 말고 쉬엄쉬엄 해",
+  "집 깨끗하게 해놓고 사는 거 엄마가 다 보고 있다 👀 칭찬해!",
+  "날씨가 쌀쌀해졌어. 따뜻하게 입고 다녀 🧣",
+  "엄마는 우리 딸 덕분에 매일 힘이 나",
+  "힘든 일 있으면 언제든 엄마한테 전화해 📞",
+  "{s}랑 사이좋게 지내고 있지? 둘이 같이 있으니 엄마 마음이 든든해",
+  "오늘 하루도 정말 수고 많았어",
+  "잠은 푹 자고 다니지? 건강이 최고야 💪",
+  "물 많이 마시고, 과일도 챙겨 먹어 🍎",
+  "우리 딸 혼자서도 이렇게 잘하니까 엄마가 걱정이 없다",
+];
+const MOM_CLOSE = ["사랑해 💕", "엄마가 늘 응원해 🌷", "보고 싶다 우리 딸 🥰", "항상 고맙고 사랑해 💗", "다음에 맛있는 거 해줄게 🍲", "꼭 안아주고 싶다 🤗", "오늘도 화이팅! 💪"];
+// 부를 때마다 새로 섞어서 만들어요
+export function momMessage(to) {
+  const r = a => a[Math.floor(Math.random() * a.length)];
+  const s = to === "내리" ? "두리" : "언니";
+  return [r(MOM_OPEN), r(MOM_BODY), r(MOM_CLOSE)].join(" ").replaceAll("{n}", to).replaceAll("{s}", s);
+}
+
+// ---- 말랑이 꾸미기 ----
+export const COLORS = {
+  peach: { name: "복숭아", c: ["#ffd2c6", "#ff9b85"] },
+  sky: { name: "하늘", c: ["#bfe0ff", "#8cc4ff"] },
+  mint: { name: "민트", c: ["#c4f0d3", "#8fd8a8"] },
+  lemon: { name: "레몬", c: ["#fff1b8", "#ffd45c"] },
+  lilac: { name: "라일락", c: ["#e6d9ff", "#b99cff"] },
+  pink: { name: "딸기우유", c: ["#ffd6e8", "#ff9cc8"] },
+  cocoa: { name: "코코아", c: ["#efdccb", "#c9a383"] },
+};
+export const ACCS = { none: "없음", ribbon: "리본", sprout: "새싹", crown: "왕관", beret: "베레모", glasses: "안경", flower: "꽃", headphones: "헤드폰", star: "별 핀" };
+export const DEFAULT_LOOK = { "내리": { color: "peach", acc: "ribbon" }, "두리": { color: "sky", acc: "sprout" }, "엄마": { color: "lilac", acc: "flower" }, "같이": { color: "mint", acc: "none" } };

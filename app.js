@@ -2,6 +2,7 @@ import {
   PEOPLE, DAYN, WEEK_ORDER, RULES, PRAISE, DEFAULT_PREFS, D, K, add, diff, mondayOf, fmtDay, other,
   generateWeek, isMine, freqLabel, nudgeText,
   NICK, WHEN, askMessage, askCount, STICKERS, sticker, callName,
+  MOM, momMessage, COLORS, ACCS, DEFAULT_LOOK,
 } from "./shared/plan.js";
 import { createStore } from "./store.js";
 
@@ -12,7 +13,7 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
 
 // ---- 상태 ----
 let store;
-let S = { household: null, tasks: {}, logs: [], weeks: {}, requests: {}, stickers: [] };
+let S = { household: null, tasks: {}, logs: [], weeks: {}, requests: {}, stickers: [], messages: {} };
 let me = "내리";
 try { me = localStorage.getItem("me") || "내리"; } catch (e) {}
 let planWeek = null; // 0 = 이번 주, 1 = 다음 주
@@ -30,9 +31,22 @@ const MAIL = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-
 
 // ---- 말랑이 ----
 let uid = 0;
-export function mallang(who, mood = "happy", size = 100, cls = "squish") {
+const lookOf = who => ({ ...(DEFAULT_LOOK[who] || DEFAULT_LOOK["같이"]), ...((S.household && S.household.prefs && S.household.prefs[who] && S.household.prefs[who].look) || {}) });
+const ACC_SVG = {
+  none: "",
+  ribbon: `<path d="M50 14 l-11 -8 q-3 7 0 13 z M50 14 l11 -8 q3 7 0 13 z" fill="#ff7f9a"/><circle cx="50" cy="14" r="3.4" fill="#ff6688"/>`,
+  sprout: `<path d="M50 14 q-2 -9 -10 -11 q8 -2 10 9 q2 -11 12 -9 q-8 2 -12 11" fill="#7cc98f" stroke="#4f9d63" stroke-width="1.5"/>`,
+  crown: `<path d="M35 19 l3 -15 l8 9 l4 -11 l4 11 l8 -9 l3 15 z" fill="#ffc93c" stroke="#e0a400" stroke-width="1.5" stroke-linejoin="round"/><circle cx="50" cy="13" r="2" fill="#ff6688"/>`,
+  beret: `<ellipse cx="46" cy="17" rx="23" ry="8" fill="#e05a6d"/><circle cx="46" cy="9" r="3" fill="#e05a6d"/>`,
+  glasses: `<g fill="none" stroke="#3b3350" stroke-width="2.6"><circle cx="37" cy="55" r="10"/><circle cx="63" cy="55" r="10"/><path d="M47 55 h6"/></g>`,
+  flower: `<g transform="translate(70 22)"><circle cx="0" cy="-6" r="5" fill="#ff8fb1"/><circle cx="6" cy="-2" r="5" fill="#ff8fb1"/><circle cx="4" cy="5" r="5" fill="#ff8fb1"/><circle cx="-4" cy="5" r="5" fill="#ff8fb1"/><circle cx="-6" cy="-2" r="5" fill="#ff8fb1"/><circle r="4" fill="#ffd45c"/></g>`,
+  headphones: `<path d="M12 60 C12 18 88 18 88 60" fill="none" stroke="#3b3350" stroke-width="5" stroke-linecap="round"/><rect x="4" y="50" width="13" height="22" rx="6" fill="#8b7cf6"/><rect x="83" y="50" width="13" height="22" rx="6" fill="#8b7cf6"/>`,
+  star: `<path d="M70 15 l3 6 6.5 1 -4.8 4.5 1.2 6.5 -5.9 -3.1 -5.9 3.1 1.2 -6.5 -4.8 -4.5 6.5 -1z" fill="#ffc93c" stroke="#e0a400" stroke-width="1.2" stroke-linejoin="round"/>`,
+};
+export function mallang(who, mood = "happy", size = 100, cls = "squish", look = null) {
   const id = "g" + (++uid);
-  const col = who === "두리" ? ["#bfe0ff", "#8cc4ff"] : who === "같이" ? ["#c4f0d3", "#8fd8a8"] : ["#ffd2c6", "#ff9b85"];
+  const lk = look || lookOf(who);
+  const col = (COLORS[lk.color] || COLORS.peach).c;
   const eyes = mood === "happy"
     ? `<path d="M31 55 q6 -7 12 0 M57 55 q6 -7 12 0" stroke="#3b3350" stroke-width="3.4" fill="none" stroke-linecap="round"/>`
     : mood === "worried"
@@ -40,17 +54,14 @@ export function mallang(who, mood = "happy", size = 100, cls = "squish") {
     : `<circle cx="37" cy="55" r="4.6" fill="#3b3350"/><circle cx="63" cy="55" r="4.6" fill="#3b3350"/><circle cx="38.6" cy="53.4" r="1.5" fill="#fff"/><circle cx="64.6" cy="53.4" r="1.5" fill="#fff"/>`;
   const mouth = mood === "worried" ? `<path d="M44 70 q6 -5 12 0" stroke="#3b3350" stroke-width="3" fill="none" stroke-linecap="round"/>`
     : `<path d="M44 66 q6 7 12 0" stroke="#3b3350" stroke-width="3" fill="none" stroke-linecap="round"/>`;
-  const top = who === "두리"
-    ? `<path d="M50 14 q-2 -9 -10 -11 q8 -2 10 9 q2 -11 12 -9 q-8 2 -12 11" fill="#7cc98f" stroke="#4f9d63" stroke-width="1.5"/>`
-    : who === "내리" ? `<path d="M50 14 l-11 -8 q-3 7 0 13 z M50 14 l11 -8 q3 7 0 13 z" fill="#ff7f9a"/><circle cx="50" cy="14" r="3.4" fill="#ff6688"/>` : "";
-  return `<svg class="mallang" width="${size}" height="${size}" viewBox="0 0 100 100" role="img" aria-label="말랑이">
+  return `<svg class="mallang" width="${size}" height="${size}" viewBox="0 0 100 100" role="img" aria-label="${esc(who)}의 말랑이">
     <defs><radialGradient id="${id}" cx="40%" cy="30%" r="75%"><stop offset="0" stop-color="${col[0]}"/><stop offset="1" stop-color="${col[1]}"/></radialGradient></defs>
     <ellipse cx="50" cy="94" rx="32" ry="4" fill="#3b3350" opacity=".12"/>
     <g class="${cls}">
       <path d="M50 14 C78 14 93 36 93 62 C93 84 74 93 50 93 C26 93 7 84 7 62 C7 36 22 14 50 14Z" fill="url(#${id})"/>
       <ellipse cx="36" cy="30" rx="10" ry="6" fill="#fff" opacity=".45" transform="rotate(-20 36 30)"/>
       <ellipse cx="26" cy="66" rx="7" ry="4.4" fill="#ff8fa3" opacity=".55"/><ellipse cx="74" cy="66" rx="7" ry="4.4" fill="#ff8fa3" opacity=".55"/>
-      ${eyes}${mouth}${top}
+      ${eyes}${mouth}${ACC_SVG[lk.acc] || ""}
     </g></svg>`;
 }
 const STAR = (s = 16) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z" fill="#ffc93c" stroke="#e0a400" stroke-width="1.2" stroke-linejoin="round"/></svg>`;
@@ -190,6 +201,19 @@ const seenList = () => { try { return JSON.parse(localStorage.getItem(seenKey())
 function markSeen(id) { const l = seenList(); if (!l.includes(id)) l.push(id); try { localStorage.setItem(seenKey(), JSON.stringify(l.slice(-300))); } catch (e) {} }
 function showNewStickers() {
   if (!$("cheer").hidden) return;
+  if (!isMom()) {
+    const seenM = (() => { try { return JSON.parse(localStorage.getItem("seenMsgs:" + me) || "[]"); } catch (e) { return []; } })();
+    const freshM = Object.values(S.messages).filter(m => m.to_p === me && !seenM.includes(m.id)).sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
+    if (freshM.length) {
+      const m = freshM[freshM.length - 1];
+      try { localStorage.setItem("seenMsgs:" + me, JSON.stringify([...seenM, ...freshM.map(x => x.id)].slice(-300))); } catch (e) {}
+      $("cheerMallang").innerHTML = mallang(MOM, "happy", 110, "hop");
+      $("cheerMsg").textContent = "엄마가 메시지를 보냈어요 💌";
+      $("cheerPlus").textContent = m.msg;
+      $("cheerUndo").hidden = true; $("cheer").hidden = false;
+      return;
+    }
+  }
   const seen = seenList();
   const fresh = S.stickers.filter(x => x.to_p === me && !seen.includes(x.id)).sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
   if (!fresh.length) return;
@@ -219,7 +243,59 @@ document.addEventListener("pointerdown", e => {
 });
 document.addEventListener("animationend", e => { if (e.target.classList && e.target.classList.contains("boing")) e.target.classList.remove("boing"); });
 
+// ---- 엄마 ----
+const isMom = () => me === MOM;
+let msg = { to: "둘 다", text: "" };
+function rerollMsg() { msg.text = momMessage(msg.to === "둘 다" ? "내리" : msg.to); }
+function renderMomToday() {
+  const today = now(), todayK = K(today);
+  const done = S.logs.filter(l => l.date === todayK);
+  $("heroMallang").innerHTML = mallang(MOM, "happy", 112);
+  $("greet").textContent = done.length ? `엄마, 오늘 딸들이 집안일 ${done.length}개 했어요!` : "엄마, 오늘 딸들 소식을 기다려요";
+  $("feedSub").textContent = "딸들이 한 일에 칭찬 스티커를 보내 보세요.";
+  document.querySelectorAll("#msgTo button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.to === msg.to)));
+  if (!msg.text) rerollMsg();
+  const shown = msg.to === "둘 다" ? msg.text.replace(/^(우리 |사랑하는 우리 |세상에서 제일 예쁜 우리 |엄마 보물 |우리 집 자랑 )?내리/, "$1내리·두리") : msg.text;
+  $("msgPreview").textContent = $("msgText").value.trim() || shown;
+  const sent = Object.values(S.messages).filter(m => m.from_p === MOM).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 6);
+  $("msgSent").innerHTML = sent.length ? sent.map(m => `<li><span class="chip c-${esc(m.to_p)}">${esc(m.to_p)}</span><span>${esc(m.msg.length > 28 ? m.msg.slice(0, 28) + "…" : m.msg)}</span>
+    <span class="when">${fmtDay(new Date(m.created_at))}</span>${m.heart ? `<span class="heart">💖 하트 받음</span>` : ""}</li>`).join("") : `<li>아직 보낸 메시지가 없어요.</li>`;
+}
+async function sendMomMsg() {
+  const custom = $("msgText").value.trim();
+  const tos = msg.to === "둘 다" ? ["내리", "두리"] : [msg.to];
+  const rows = tos.map(to => ({ id: newId("m"), from_p: MOM, to_p: to, msg: custom || (tos.length > 1 ? momMessage(to) : msg.text), heart: false, created_at: new Date().toISOString() }));
+  rows.forEach(r => { S.messages[r.id] = r; });
+  $("msgText").value = ""; rerollMsg(); render();
+  toast(`${tos.join("·")}에게 메시지를 보냈어요 💌`, false);
+  try { for (const r of rows) { await store.addMessage(r); store.notify({ momMsg: r.id }).catch(() => {}); } } catch (e) { fail(e); }
+}
+function renderMomInbox() {
+  const mine = Object.values(S.messages).filter(m => m.to_p === me).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 3);
+  $("momSec").hidden = !mine.length;
+  $("momList").innerHTML = mine.map(m => `<div class="card mom"><div class="reqfrom">${mallang(MOM, "happy", 40, "")}<span>엄마</span><span class="sub">${fmtDay(new Date(m.created_at))}</span></div>
+    <p class="reqmsg">${esc(m.msg)}</p>
+    <div class="btnrow">${m.heart ? `<span class="heart">💖 엄마에게 하트를 보냈어요</span>` : `<button type="button" class="btn small" data-heart="${esc(m.id)}">💖 하트 보내기</button>`}</div></div>`).join("");
+}
+async function sendHeart(id) {
+  const m = S.messages[id]; if (!m || m.heart) return;
+  m.heart = true; render(); toast("엄마에게 하트를 보냈어요 💖", false);
+  try { await store.updateMessage(id, { heart: true }); store.notify({ heart: id }).catch(() => {}); } catch (e) { fail(e); }
+}
+
 function renderToday() {
+  const mom = isMom();
+  document.querySelectorAll("#v-today [data-kid]").forEach(e => { e.hidden = mom; });
+  document.querySelectorAll("#v-today [data-mom]").forEach(e => { e.hidden = !mom; });
+  if (mom) {
+    $("inboxSec").hidden = true; $("sentSec").hidden = true; $("momSec").hidden = true; $("weekBanner").hidden = true; $("planDot").hidden = true;
+    $("today").textContent = `${now().getMonth() + 1}월 ${now().getDate()}일 ${DAYN[now().getDay()]}요일`;
+    $("starPills").innerHTML = PEOPLE.map(p => `<span class="starpill">${STAR()}${p} ${starsOf(p)}개</span>`).join("");
+    renderMomToday(); renderFeed();
+    return;
+  }
+  $("feedSub").textContent = "상대가 한 일에 칭찬 스티커를 보내 보세요.";
+  renderMomInbox();
   const today = now();
   $("today").textContent = `${today.getMonth() + 1}월 ${today.getDate()}일 ${DAYN[today.getDay()]}요일`;
   const due = dueTasks();
@@ -269,13 +345,16 @@ function renderToday() {
     `<button type="button" class="btn ghost small" data-done="${esc(t.id)}">미리 했어요</button>`)).join("")
     : `<div class="empty">이번 주에 남은 일이 없어요.</div>`;
 
+  renderFeed();
+  $("rules").innerHTML = RULES.map(r => `<li>${esc(r)}</li>`).join("");
+}
+function renderFeed() {
   const recent = [...S.logs].sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 8);
   $("feed").innerHTML = recent.length ? recent.map(l => {
     const got = S.stickers.filter(x => x.log_id === l.id).map(x => sticker(x.kind).e).join("");
     const btn = l.by !== me ? `<button type="button" class="btn ghost small" data-praise="${esc(l.id)}">칭찬하기</button>` : "";
     return `<li>${STAR()}${whoChip(l.by)}<span>${esc(logName(l))}</span>${got ? `<span class="stk" aria-label="받은 스티커">${got}</span>` : ""}<span class="when">${fmtDay(D(l.date))}</span>${btn}</li>`;
   }).join("") : `<li>아직 모은 별이 없어요. 첫 번째 별의 주인공은 누구?</li>`;
-  $("rules").innerHTML = RULES.map(r => `<li>${esc(r)}</li>`).join("");
 }
 
 // ---- 화면: 계획 ----
@@ -295,8 +374,8 @@ async function renderPlan() {
   const per = days.map(d => mineT.filter(t => t.day === K(d)).reduce((s, t) => s + chore(t.chore_id).mins, 0));
   const max = Math.max(30, ...per);
   $("loadTitle").textContent = `${me}의 요일별 시간`;
-  $("load").innerHTML = days.map((d, i) => `<div class="col${K(d) === K(today) ? " today" : ""}"><span>${per[i] ? per[i] + "분" : ""}</span>
-    <div class="bar" style="height:${Math.round((per[i] / max) * 48)}px"></div><span>${DAYN[d.getDay()]}</span></div>`).join("");
+  $("load").innerHTML = days.map((d, i) => `<div class="col${K(d) === K(today) ? " today" : ""}"><span>${per[i] ? per[i] + "분" : "&nbsp;"}</span>
+    <div class="barwrap"><div class="bar" style="height:${Math.max(3, Math.round((per[i] / max) * 52))}px"></div></div><span class="dayname">${DAYN[d.getDay()]}</span></div>`).join("");
 
   const order = t => (isMine(t.who, me) ? 0 : 1);
   const sorted = tasks.sort((a, b) => order(a) - order(b) || a.day.localeCompare(b.day) || a.chore_id.localeCompare(b.chore_id));
@@ -321,14 +400,31 @@ async function renderPlan() {
 function renderMy() {
   const p = prefs();
   $("myMallang").innerHTML = mallang(me, "happy", 100);
+  if (isMom()) { $("myStars").textContent = "내리·두리를 응원하는 엄마"; }
   $("myName").textContent = `${me}의 페이지`;
-  $("myStars").textContent = `지금까지 모은 별 ${starsOf(me)}개`;
+  if (!isMom()) $("myStars").textContent = `지금까지 모은 별 ${starsOf(me)}개 · 받은 칭찬 스티커 ${S.stickers.filter(x => x.to_p === me).length}개`;
   document.querySelectorAll(".who button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.p === me)));
   $("prefAlarm").value = (p[me] && p[me].alarm) || "20:00";
   $("prefCheck").value = (p[me] && p[me].check) || "23:30";
   $("prefPlan").value = p.plan || "21:00";
-  if (!$("defaults").dataset.dirty) renderDefaults();
+  document.querySelectorAll("#v-my [data-kid]").forEach(e => { e.hidden = isMom(); });
+  if (!isMom() && !$("defaults").dataset.dirty) renderDefaults();
+  renderLook();
   refreshPushStatus();
+}
+function renderLook() {
+  const lk = lookOf(me);
+  $("lookPreview").innerHTML = mallang(me, "happy", 120);
+  $("lookColors").innerHTML = Object.entries(COLORS).map(([k, v]) => `<button type="button" class="swatch" data-color="${k}" aria-pressed="${lk.color === k}" aria-label="${v.name}" title="${v.name}"
+    style="background:linear-gradient(135deg, ${v.c[0]}, ${v.c[1]})"></button>`).join("");
+  $("lookAccs").innerHTML = Object.entries(ACCS).map(([k, v]) => `<button type="button" data-acc="${k}" aria-pressed="${lk.acc === k}">${v}</button>`).join("");
+}
+async function setLook(patch) {
+  const p = prefs();
+  const next = { ...p, [me]: { ...(p[me] || {}), look: { ...lookOf(me), ...patch } } };
+  S.household = { ...S.household, prefs: next };
+  render();
+  try { await store.saveHousehold(S.household); } catch (e) { fail(e); }
 }
 function dayButtons(name, selected, multi, who) {
   return `<div class="days" role="group" data-who="${esc(who)}" data-group="${name}" data-multi="${multi ? 1 : 0}">${WEEK_ORDER.map(d =>
@@ -488,7 +584,10 @@ async function testPush() {
 // ---- 화면 전환 ----
 function route() {
   const v = (location.hash || "#today").slice(1);
-  const view = ["today", "plan", "my"].includes(v) ? v : "today";
+  let view = ["today", "plan", "my"].includes(v) ? v : "today";
+  if (view === "plan" && isMom()) view = "today";
+  document.querySelector('.tabs [data-tab="plan"]').hidden = isMom();
+  document.querySelector(".tabs").style.gridTemplateColumns = isMom() ? "repeat(2, 1fr)" : "";
   for (const name of ["today", "plan", "my"]) $("v-" + name).hidden = name !== view;
   document.querySelectorAll(".tabs a").forEach(a => { if (a.dataset.tab === view) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
   render();
@@ -506,6 +605,12 @@ function render() {
 document.addEventListener("click", e => {
   const el = e.target.closest("button"); if (!el) return;
   if (el.id === "askOpen") return openAsk();
+  if (el.dataset.to) { msg.to = el.dataset.to; rerollMsg(); return render(); }
+  if (el.id === "msgReroll") { rerollMsg(); return render(); }
+  if (el.id === "msgSend") return sendMomMsg();
+  if (el.dataset.heart) return sendHeart(el.dataset.heart);
+  if (el.dataset.color) return setLook({ color: el.dataset.color });
+  if (el.dataset.acc) return setLook({ acc: el.dataset.acc });
   if (el.dataset.asktask) {
     const t = S.tasks[el.dataset.asktask];
     ask.task = ask.task && ask.task.task_id === t.id ? null : { task_id: t.id, chore_id: t.chore_id, title: chore(t.chore_id).name };
@@ -530,12 +635,13 @@ document.addEventListener("click", e => {
     $("defaults").dataset.dirty = "1"; $("defStatus").textContent = "저장 버튼을 눌러야 바뀌어요"; $("defStatus").className = "status";
     return;
   }
-  if (el.dataset.p) { me = el.dataset.p; try { localStorage.setItem("me", me); } catch (x) {} return render(); }
+  if (el.dataset.p) { me = el.dataset.p; try { localStorage.setItem("me", me); } catch (x) {} return route(); }
 });
 $("defaults").addEventListener("input", () => { $("defaults").dataset.dirty = "1"; });
 $("undoBtn").addEventListener("click", doUndo);
 $("cheerUndo").addEventListener("click", doUndo);
 $("cheerOk").addEventListener("click", () => { $("cheer").hidden = true; showNewStickers(); });
+$("msgText").addEventListener("input", () => { $("msgPreview").textContent = $("msgText").value.trim() || msg.text; });
 $("askText").addEventListener("input", () => { if ($("askText").value.trim()) ask.task = null; renderAsk(); });
 $("askReroll").addEventListener("click", () => { ask.i++; renderAsk(); });
 $("askSend").addEventListener("click", sendAsk);
@@ -551,7 +657,8 @@ window.addEventListener("hashchange", route);
 async function reload() {
   const data = await store.load();
   S = { household: data.household, tasks: Object.fromEntries(data.tasks.map(t => [t.id, t])), logs: data.logs, weeks: Object.fromEntries(data.weeks.map(w => [w.monday, w])),
-    requests: Object.fromEntries((data.requests || []).map(r => [r.id, r])), stickers: data.stickers || [] };
+    requests: Object.fromEntries((data.requests || []).map(r => [r.id, r])), stickers: data.stickers || [],
+    messages: Object.fromEntries((data.messages || []).map(m => [m.id, m])) };
   await ensureWeek(thisMonday());
   render();
   showNewStickers();
