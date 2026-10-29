@@ -23,6 +23,9 @@ alter table public_config enable row level security;
 alter table app_secrets enable row level security;
 
 -- 앱(공개 키)은 집안일 기록을 읽고 쓸 수 있어요. 알림 기록·비밀 값은 서버만.
+grant select, insert, update, delete on household, tasks, logs, weeks, push_subs to anon, authenticated;
+grant select on public_config to anon, authenticated;
+grant all on household, tasks, logs, weeks, push_subs, push_log, public_config, app_secrets to service_role;
 create policy "app all" on household for all to anon, authenticated using (true) with check (true);
 create policy "app all" on tasks for all to anon, authenticated using (true) with check (true);
 create policy "app all" on logs for all to anon, authenticated using (true) with check (true);
