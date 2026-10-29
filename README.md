@@ -10,7 +10,7 @@
 - 앱 화면: `index.html`, `styles.css`, `app.js`, `store.js`, `shared/plan.js` (GitHub Pages)
 - 알림: `sw.js`(서비스 워커), `supabase/functions/tick`(5분마다 실행되는 알림 서버)
 - 데이터: Supabase (`supabase/migrations`)
-- 배포: `main`에 올리면 `.github/workflows/deploy.yml`이 앱과 알림 서버를 함께 배포해요
+- 배포: 앱 화면은 GitHub Pages가 `main` 브랜치를 그대로 열어줘요. 알림 서버와 데이터베이스는 `.github/workflows/deploy.yml`이 배포해요
 
 ## 설정
 `config.js`에 Supabase 프로젝트 주소와 공개용(anon) 키를 넣고, 저장소 Secrets에 `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`를 넣어요.

@@ -1,4 +1,4 @@
-name: 배포
+name: 알림 서버 배포
 
 on:
   push:
@@ -7,8 +7,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: deploy
@@ -47,20 +45,3 @@ jobs:
           # 첫 호출로 알림 키를 만들어 둬요
           curl -s -X POST "https://${{ steps.ref.outputs.ref }}.supabase.co/functions/v1/tick" -H 'Content-Type: application/json' -d '{}' || true
 
-  pages:
-    name: 앱 (GitHub Pages)
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: 앱 파일 모으기
-        run: |
-          mkdir _site
-          cp -r index.html styles.css app.js store.js config.js sw.js manifest.webmanifest icons shared _site/
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site
-      - id: deploy
-        uses: actions/deploy-pages@v4
