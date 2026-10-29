@@ -1,0 +1,67 @@
+name: 배포
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  server:
+    name: 알림 서버 (Supabase)
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: 프로젝트 주소 확인
+        id: ref
+        run: |
+          REF=$(grep -oE 'https://[a-z0-9]+\.supabase\.co' config.js | head -1 | sed -E 's#https://([a-z0-9]+)\.supabase\.co#\1#')
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+          if [ -z "$REF" ] || [ -z "$SUPABASE_ACCESS_TOKEN" ]; then echo "skip=1" >> "$GITHUB_OUTPUT"; echo "::notice::Supabase 설정이 아직 없어서 서버 배포를 건너뜁니다"; fi
+      - uses: supabase/setup-cli@v1
+        if: steps.ref.outputs.skip != '1'
+        with:
+          version: 2.20.5
+      - name: 데이터베이스 준비
+        if: steps.ref.outputs.skip != '1'
+        run: |
+          sed -i "s/__PROJECT_REF__/${{ steps.ref.outputs.ref }}/g" supabase/migrations/*.sql
+          supabase link --project-ref "${{ steps.ref.outputs.ref }}" --password "$SUPABASE_DB_PASSWORD"
+          supabase db push --password "$SUPABASE_DB_PASSWORD"
+      - name: 알림 함수 배포
+        if: steps.ref.outputs.skip != '1'
+        run: |
+          mkdir -p supabase/functions/_shared && cp shared/plan.js supabase/functions/_shared/plan.js
+          supabase functions deploy tick --no-verify-jwt --project-ref "${{ steps.ref.outputs.ref }}"
+          # 첫 호출로 알림 키를 만들어 둬요
+          curl -s -X POST "https://${{ steps.ref.outputs.ref }}.supabase.co/functions/v1/tick" -H 'Content-Type: application/json' -d '{}' || true
+
+  pages:
+    name: 앱 (GitHub Pages)
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: 앱 파일 모으기
+        run: |
+          mkdir _site
+          cp -r index.html styles.css app.js store.js config.js sw.js manifest.webmanifest icons shared _site/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4
