@@ -45,7 +45,7 @@ jobs:
         if: steps.ref.outputs.skip != '1'
         run: |
           mkdir -p supabase/functions/_shared && cp shared/plan.js supabase/functions/_shared/plan.js
-          supabase functions deploy tick --no-verify-jwt --project-ref "${{ steps.ref.outputs.ref }}"
+          supabase functions deploy tick --use-api --no-verify-jwt --project-ref "${{ steps.ref.outputs.ref }}"
           # 첫 호출로 알림 키를 만들어 둬요
           curl -s -X POST "https://${{ steps.ref.outputs.ref }}.supabase.co/functions/v1/tick" -H 'Content-Type: application/json' -d '{}' || true
 
