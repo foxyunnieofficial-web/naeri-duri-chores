@@ -1,4 +1,5 @@
 -- 내리두리 집안일: 테이블, 접근 규칙, 5분마다 알림 서버 호출
+-- 배포할 때마다 실행돼요. 여러 번 실행해도 결과가 같아요.
 create table if not exists household (id int primary key default 1, chores jsonb not null, prefs jsonb not null default '{}', updated_at timestamptz default now());
 create table if not exists tasks (
   id text primary key, week date not null, chore_id text not null, who text not null, day date not null,
@@ -26,16 +27,31 @@ alter table app_secrets enable row level security;
 grant select, insert, update, delete on household, tasks, logs, weeks, push_subs to anon, authenticated;
 grant select on public_config to anon, authenticated;
 grant all on household, tasks, logs, weeks, push_subs, push_log, public_config, app_secrets to service_role;
+drop policy if exists "app all" on household;
 create policy "app all" on household for all to anon, authenticated using (true) with check (true);
+drop policy if exists "app all" on tasks;
 create policy "app all" on tasks for all to anon, authenticated using (true) with check (true);
+drop policy if exists "app all" on logs;
 create policy "app all" on logs for all to anon, authenticated using (true) with check (true);
+drop policy if exists "app all" on weeks;
 create policy "app all" on weeks for all to anon, authenticated using (true) with check (true);
+drop policy if exists "app all" on push_subs;
 create policy "app all" on push_subs for all to anon, authenticated using (true) with check (true);
+drop policy if exists "app read" on public_config;
 create policy "app read" on public_config for select to anon, authenticated using (true);
 
 insert into app_secrets(key, value) values ('cron', gen_random_uuid()::text) on conflict do nothing;
 
-alter publication supabase_realtime add table household, tasks, logs, weeks;
+do $$
+declare t text;
+begin
+  foreach t in array array['household', 'tasks', 'logs', 'weeks'] loop
+    begin
+      execute format('alter publication supabase_realtime add table %I', t);
+    exception when duplicate_object then null;
+    end;
+  end loop;
+end $$;
 
 create extension if not exists pg_cron;
 create extension if not exists pg_net with schema extensions;

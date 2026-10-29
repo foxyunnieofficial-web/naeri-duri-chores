@@ -13,4 +13,4 @@
 - 배포: 앱 화면은 GitHub Pages가 `main` 브랜치를 그대로 열어줘요. 알림 서버와 데이터베이스는 `.github/workflows/deploy.yml`이 배포해요
 
 ## 설정
-`config.js`에 Supabase 프로젝트 주소와 공개용(anon) 키를 넣고, 저장소 Secrets에 `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`를 넣어요.
+`config.js`에 Supabase 프로젝트 주소와 공개용(anon) 키를 넣고, 저장소 Secrets에 `SUPABASE_ACCESS_TOKEN`을 넣어요.

@@ -18,7 +18,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
       - name: 프로젝트 주소 확인
@@ -34,9 +33,14 @@ jobs:
       - name: 데이터베이스 준비
         if: steps.ref.outputs.skip != '1'
         run: |
-          sed -i "s/__PROJECT_REF__/${{ steps.ref.outputs.ref }}/g" supabase/migrations/*.sql
-          supabase link --project-ref "${{ steps.ref.outputs.ref }}" --password "$SUPABASE_DB_PASSWORD"
-          supabase db push --password "$SUPABASE_DB_PASSWORD"
+          REF="${{ steps.ref.outputs.ref }}"
+          for f in supabase/migrations/*.sql; do
+            sed "s/__PROJECT_REF__/$REF/g" "$f" | python3 -c 'import json,sys; print(json.dumps({"query": sys.stdin.read()}))' > /tmp/q.json
+            code=$(curl -sS -o /tmp/out.json -w '%{http_code}' -X POST "https://api.supabase.com/v1/projects/$REF/database/query" \
+              -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data @/tmp/q.json)
+            echo "$f -> $code"; head -c 1000 /tmp/out.json; echo
+            case "$code" in 2*) ;; *) exit 1;; esac
+          done
       - name: 알림 함수 배포
         if: steps.ref.outputs.skip != '1'
         run: |
@@ -45,3 +49,11 @@ jobs:
           # 첫 호출로 알림 키를 만들어 둬요
           curl -s -X POST "https://${{ steps.ref.outputs.ref }}.supabase.co/functions/v1/tick" -H 'Content-Type: application/json' -d '{}' || true
 
+      - name: 확인
+        if: steps.ref.outputs.skip != '1'
+        run: |
+          REF="${{ steps.ref.outputs.ref }}"
+          ANON=$(grep -oE 'eyJ[A-Za-z0-9._-]+' config.js | head -1)
+          echo "공개 설정:"; curl -sS "https://$REF.supabase.co/rest/v1/public_config?select=key" -H "apikey: $ANON" -H "Authorization: Bearer $ANON"; echo
+          echo "주간 계획 수:"; curl -sS "https://$REF.supabase.co/rest/v1/weeks?select=monday,planned" -H "apikey: $ANON" -H "Authorization: Bearer $ANON"; echo
+          echo "예약 작업:"; curl -sS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' -d '{"query":"select jobname, schedule, active from cron.job"}'; echo
