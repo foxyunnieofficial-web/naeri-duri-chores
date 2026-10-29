@@ -1,14 +1,16 @@
 // 저장소: Supabase가 설정돼 있으면 두 사람이 함께 쓰는 서버에, 아니면 이 기기에만 저장해요.
-import { DEFAULT_CHORES, DEFAULT_PREFS, K, add, mondayOf } from "./shared/plan.js";
+import { DEFAULT_CHORES, DEFAULT_PREFS, K, add, mondayOf, isParent } from "./shared/plan.js";
 
 const seed = () => ({ id: 1, chores: DEFAULT_CHORES, prefs: DEFAULT_PREFS });
 
-export async function createStore(cfg) {
-  if (cfg.supabaseUrl && cfg.supabaseAnonKey && window.supabase) return supabaseStore(cfg);
-  return localStore();
+// viewer가 엄마나 아빠면 그 사람이 주고받은 메시지와 보낸 스티커만 불러와요 (엄마·아빠끼리는 서로 안 보이게)
+export async function createStore(cfg, viewer) {
+  return cfg.supabaseUrl && cfg.supabaseAnonKey && window.supabase ? supabaseStore(cfg, viewer) : localStore(viewer);
 }
+const mineOnly = (viewer, rows, key) => (isParent(viewer) ? rows.filter(key) : rows);
 
-function supabaseStore(cfg) {
+function supabaseStore(cfg, viewer) {
+  const par = isParent(viewer);
   const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
   const must = ({ data, error }) => { if (error) throw error; return data; };
   return {
@@ -21,9 +23,10 @@ function supabaseStore(cfg) {
         sb.from("tasks").select("*").or(`status.eq.todo,day.gte.${since}`).then(must),
         sb.from("logs").select("*").then(must),
         sb.from("weeks").select("*").then(must),
-        sb.from("requests").select("*").or(`status.eq.open,created_at.gte.${recent}`).then(must),
-        sb.from("stickers").select("*").then(must),
-        sb.from("messages").select("*").gte("created_at", new Date(Date.now() - 30 * 864e5).toISOString()).then(must),
+        par ? [] : sb.from("requests").select("*").or(`status.eq.open,created_at.gte.${recent}`).then(must),
+        (par ? sb.from("stickers").select("*").eq("from_p", viewer) : sb.from("stickers").select("*")).then(must),
+        (par ? sb.from("messages").select("*").or(`from_p.eq.${viewer},to_p.eq.${viewer}`) : sb.from("messages").select("*"))
+          .gte("created_at", new Date(Date.now() - 30 * 864e5).toISOString()).then(must),
       ]);
       let household = hh;
       if (!household) { household = seed(); await sb.from("household").upsert(household).then(must); }
@@ -61,7 +64,7 @@ function supabaseStore(cfg) {
   };
 }
 
-function localStore() {
+function localStore(viewer) {
   const KEY = "nd-local-v1";
   let db;
   try { db = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { db = null; }
@@ -73,7 +76,9 @@ function localStore() {
   const ok = v => Promise.resolve(v);
   return {
     kind: "local",
-    load: () => ok({ household: db.household, tasks: Object.values(db.tasks), logs: Object.values(db.logs), weeks: Object.values(db.weeks), requests: Object.values(db.requests), stickers: Object.values(db.stickers), messages: Object.values(db.messages) }),
+    load: () => ok({ household: db.household, tasks: Object.values(db.tasks), logs: Object.values(db.logs), weeks: Object.values(db.weeks), requests: mineOnly(viewer, Object.values(db.requests), () => false),
+      stickers: mineOnly(viewer, Object.values(db.stickers), x => x.from_p === viewer),
+      messages: mineOnly(viewer, Object.values(db.messages), m => m.from_p === viewer || m.to_p === viewer) }),
     upsertTasks: rows => { rows.forEach(r => { if (!db.tasks[r.id]) db.tasks[r.id] = r; }); save(); return ok(); },
     updateTask: (id, patch) => { if (db.tasks[id]) Object.assign(db.tasks[id], patch); save(); return ok(); },
     putTask: row => { db.tasks[row.id] = row; save(); return ok(); },

@@ -28,22 +28,14 @@
       </header>
       <div class="stars" id="starPills"></div>
       <div class="btnrow" id="askRow" data-kid></div>
-      <section data-mom hidden>
-        <div class="head"><h2>딸들에게 메시지 보내기</h2></div>
-        <div class="card">
-          <div class="seg" id="msgTo"><button type="button" data-to="내리">내리</button><button type="button" data-to="두리">두리</button><button type="button" data-to="둘 다">둘 다</button></div>
-          <div class="reqmsg" id="msgPreview"></div>
-          <textarea id="msgText" rows="2" maxlength="200" placeholder="직접 쓰고 싶으면 여기에 써요 (비워 두면 위 메시지가 가요)" aria-label="직접 쓰는 메시지"></textarea>
-          <div class="btnrow"><button type="button" class="btn ghost small" id="msgReroll">다른 말로</button><button type="button" class="btn" id="msgSend">보내기</button></div>
-        </div>
-      </section>
+      <div class="btnrow" data-parent hidden><button type="button" class="btn ask" data-compose="1" id="parentCompose">💌 딸들에게 메시지 보내기</button></div>
       <section id="inboxSec" hidden>
         <div class="head"><h2 id="inboxTitle">부탁 받은 일</h2></div>
         <div class="list" id="inbox"></div>
       </section>
-      <section id="momSec" hidden>
-        <div class="head"><h2>엄마의 메시지</h2></div>
-        <div class="list" id="momList"></div>
+      <section id="msgInSec" hidden>
+        <div class="head"><h2>받은 메시지</h2></div>
+        <div class="list" id="msgIn"></div>
       </section>
       <div id="planCallout" data-kid></div>
       <div class="banner" id="weekBanner" hidden></div>
@@ -75,7 +67,7 @@
         <ul class="feed card" id="feed"></ul>
       </section>
 
-      <section data-mom hidden>
+      <section id="msgSentSec" hidden>
         <div class="head"><h2>보낸 메시지</h2></div>
         <ul class="feed card" id="msgSent"></ul>
       </section>
@@ -113,12 +105,11 @@
         <div class="bubble"><h1 id="myName">내리</h1><p id="myStars"></p></div>
       </header>
 
-      <section>
+      <section data-kid>
         <h2>나는 누구?</h2>
         <div class="who" role="group" aria-label="나는 누구">
           <button type="button" data-p="내리" aria-pressed="true">나는 내리</button>
           <button type="button" data-p="두리" aria-pressed="false">나는 두리</button>
-          <button type="button" data-p="엄마" aria-pressed="false">나는 엄마</button>
         </div>
       </section>
 
@@ -195,6 +186,17 @@
     <p class="sub" id="stSub"></p>
     <div class="stgrid" id="stGrid"></div>
     <button type="button" class="btn ghost small" id="stClose">닫기</button>
+  </div>
+</div>
+<div class="cheer" id="msgSheet" hidden role="dialog" aria-modal="true" aria-labelledby="msgHead">
+  <div class="box sheet">
+    <h2 id="msgHead">메시지 보내기</h2>
+    <p class="sub" id="msgToLabel">누구에게?</p>
+    <div class="seg" id="msgTo"></div>
+    <div class="reqmsg" id="msgPreview"></div>
+    <div class="row2"><button type="button" class="btn ghost small" id="msgReroll">다른 말로</button></div>
+    <textarea id="msgText" rows="2" maxlength="200" placeholder="직접 쓰고 싶으면 여기에 써요 (비워 두면 위 메시지가 가요)" aria-label="직접 쓰는 메시지"></textarea>
+    <div class="row2"><button type="button" class="btn" id="msgSend">보내기</button><button type="button" class="btn ghost small" id="msgClose">닫기</button></div>
   </div>
 </div>
 <div class="toast" id="toast" hidden><span id="toastMsg"></span><button type="button" id="undoBtn">되돌리기</button></div>

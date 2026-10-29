@@ -14,3 +14,11 @@
 
 ## 설정
 `config.js`에 Supabase 프로젝트 주소와 공개용(anon) 키를 넣고, 저장소 Secrets에 `SUPABASE_ACCESS_TOKEN`을 넣어요.
+
+## 세 가지 앱 주소
+- 내리·두리: `https://foxyunnieofficial-web.github.io/naeri-duri-chores/`
+- 엄마: `.../naeri-duri-chores/mom.html`
+- 아빠: `.../naeri-duri-chores/dad.html`
+
+엄마·아빠 앱은 자기가 주고받은 메시지와 자기가 보낸 스티커만 불러와요. 화면에서 서로가 보이지 않게 나눈 것이고, 같은 서버를 쓰기 때문에 기술적으로 완전히 잠긴 건 아니에요.
+`mom.html`, `dad.html`은 `index.html`로 만들어요. `index.html`을 고친 뒤 `node tools/make-parent-pages.mjs`를 실행해 주세요.

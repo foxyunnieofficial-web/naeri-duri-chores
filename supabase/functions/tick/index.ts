@@ -7,7 +7,7 @@ import webpush from "npm:web-push@3.6.7";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import {
   DEFAULT_CHORES, DEFAULT_PREFS, PEOPLE, K, add, mondayOf, generateWeek, isMine, nudgeText,
-  askTitle, replyMessage, replyTitle, didTitle, sticker, callName, other, MOM,
+  askTitle, replyMessage, replyTitle, didTitle, sticker, callName, other, PARENTS, appUrl, msgTitle,
 } from "../_shared/plan.js";
 
 const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
@@ -96,8 +96,9 @@ Deno.serve(async req => {
       title: didTitle(l.by, l.title ?? c?.name ?? l.chore_id), body: "칭찬 스티커를 보내 주세요 ✨", tag: `did-${id}`, url: "./#today",
       kind: "did", log: id, from: l.by,
     };
-    // 같이 사는 상대와 엄마에게
-    const n = (await sendTo({ person: other(l.by) }, payload)) + (await sendTo({ person: MOM }, payload));
+    // 같이 사는 상대와 엄마·아빠에게 (엄마·아빠는 각자 자기 앱으로 열려요)
+    let n = await sendTo({ person: other(l.by) }, payload);
+    for (const p of PARENTS) n += await sendTo({ person: p }, { ...payload, url: appUrl(p) });
     return Response.json({ sent: n });
   }
   // 칭찬 스티커 → 일 한 사람에게
@@ -106,18 +107,19 @@ Deno.serve(async req => {
     const { data: st } = await sb.from("stickers").select("*").eq("id", id).maybeSingle();
     if (!st || !(await once(`st:${id}`))) return Response.json({ sent: 0 });
     const s = sticker(st.kind);
-    const n = await sendTo({ person: st.to_p }, { title: `${callName(st.from_p)}가 칭찬 스티커를 보냈어요!`, body: `${s.e} ${s.t}`, tag: `st-${id}`, url: "./#today" });
+    const n = await sendTo({ person: st.to_p }, { title: `${callName(st.from_p, st.to_p)}가 칭찬 스티커를 보냈어요!`, body: `${s.e} ${s.t}`, tag: `st-${id}`, url: "./#today" });
     return Response.json({ sent: n });
   }
 
-  // 엄마 메시지 → 받는 딸에게, 하트 → 엄마에게
-  if (body.momMsg || body.heart) {
-    const id = String(body.momMsg || body.heart);
+  // 메시지·답장 → 받는 사람에게, 하트 → 보낸 사람에게 (momMsg는 예전 앱 호환)
+  if (body.msg || body.momMsg || body.heart) {
+    const id = String(body.msg || body.momMsg || body.heart);
+    const heart = !!body.heart;
     const { data: m } = await sb.from("messages").select("*").eq("id", id).maybeSingle();
-    if (!m || !(await once(`msg:${id}:${body.momMsg ? "send" : "heart"}`))) return Response.json({ sent: 0 });
-    const n = body.momMsg
-      ? await sendTo({ person: m.to_p }, { title: "엄마가 메시지를 보냈어요 💌", body: m.msg, tag: `msg-${id}`, url: "./#today" })
-      : await sendTo({ person: m.from_p }, { title: `${m.to_p}가 엄마 메시지에 하트를 보냈어요 💖`, body: m.msg.slice(0, 60), tag: `heart-${id}`, url: "./#today" });
+    if (!m || !(await once(`msg:${id}:${heart ? "heart" : "send"}`))) return Response.json({ sent: 0 });
+    const n = heart
+      ? await sendTo({ person: m.from_p }, { title: `${callName(m.to_p, m.from_p)}가 메시지에 하트를 보냈어요 💖`, body: m.msg.slice(0, 60), tag: `heart-${id}`, url: appUrl(m.from_p) })
+      : await sendTo({ person: m.to_p }, { title: msgTitle(m.from_p, m.to_p, !!m.reply_to), body: m.msg, tag: `msg-${id}`, url: appUrl(m.to_p) });
     return Response.json({ sent: n });
   }
 
@@ -150,7 +152,8 @@ Deno.serve(async req => {
 
   const { data: todo } = await sb.from("tasks").select("*").eq("status", "todo").lte("day", K(add(mondayOf(today), 6)));
   const { data: todayLogs } = await sb.from("logs").select("chore_id").eq("date", todayK);
-  const daily = chores.find(c => c.freq === "daily");
+  const dailies = chores.filter(c => c.freq === "daily") as (typeof DEFAULT_CHORES[number] & { at?: string })[];
+  const dailyDone = (id: string) => (todayLogs ?? []).some(l => l.chore_id === id);
   const out: string[] = [];
 
   for (const p of PEOPLE) {
@@ -173,12 +176,20 @@ Deno.serve(async req => {
       }
     }
 
+    // 매일 하는 일 중 시각이 정해진 것 (환기 아침 8시)
+    for (const c of dailies) {
+      if (c.at && isMine(c.who, p) && inWindow(nowMin, c.at) && !dailyDone(c.id) && await once(`${todayK}:${p}:daily:${c.id}`)) {
+        await sendTo({ person: p }, { title: `${c.name} 할 시간이에요!`, body: `${c.note ? c.note + ", " : ""}${c.mins}분이면 끝나요. 상쾌한 하루 시작 🌿`, tag: `daily-${c.id}`, url: "./#today", tasks: [{ id: null, chore_id: c.id, pc: 0 }] });
+        out.push(`${p}:daily:${c.id}`);
+      }
+    }
+
     if (inWindow(nowMin, pp.check)) {
       const due = mine.filter(t => t.day <= todayK);
-      const dishDue = daily && isMine(daily.who, p) && !(todayLogs ?? []).some(l => l.chore_id === daily.id);
-      if ((due.length || dishDue) && await once(`${todayK}:${p}:check`)) {
+      const dailyDue = dailies.filter(c => isMine(c.who, p) && !dailyDone(c.id));
+      if ((due.length || dailyDue.length) && await once(`${todayK}:${p}:check`)) {
         const items = due.map(t => ({ id: t.id, chore_id: t.chore_id, pc: t.postpone_count || 0 }));
-        if (dishDue) items.push({ id: null, chore_id: daily!.id, pc: 0 });
+        for (const c of dailyDue) items.push({ id: null, chore_id: c.id, pc: 0 });
         const first = chore(items[0].chore_id);
         const title = items.length === 1 ? `오늘 ${first.name} 했나요?` : `오늘 할 일 ${items.length}개, 했나요?`;
         const most = due.sort((a, b) => (b.postpone_count || 0) - (a.postpone_count || 0))[0];

@@ -1,0 +1,208 @@
+<!doctype html>
+<!-- tools/make-parent-pages.mjs가 index.html로 만든 파일이에요. 직접 고치지 마세요. -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>내리두리 아빠</title>
+<meta name="theme-color" content="#f4f1fb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="내리두리 아빠">
+<link rel="manifest" href="manifest-dad.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="styles.css">
+<script>self.APP_MODE = "아빠";</script>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="notice" id="sync" hidden></div>
+
+  <!-- 오늘 -->
+  <main class="view" id="v-today">
+    <div class="wrap" style="padding:0">
+      <header class="hero">
+        <div id="heroMallang"></div>
+        <div class="bubble"><h1 id="greet">안녕!</h1><p id="today"></p></div>
+      </header>
+      <div class="stars" id="starPills"></div>
+      <div class="btnrow" id="askRow" data-kid></div>
+      <div class="btnrow" data-parent hidden><button type="button" class="btn ask" data-compose="1" id="parentCompose">💌 딸들에게 메시지 보내기</button></div>
+      <section id="inboxSec" hidden>
+        <div class="head"><h2 id="inboxTitle">부탁 받은 일</h2></div>
+        <div class="list" id="inbox"></div>
+      </section>
+      <section id="msgInSec" hidden>
+        <div class="head"><h2>받은 메시지</h2></div>
+        <div class="list" id="msgIn"></div>
+      </section>
+      <div id="planCallout" data-kid></div>
+      <div class="banner" id="weekBanner" hidden></div>
+
+      <section data-kid>
+        <div class="head"><h2>오늘 했나요?</h2><span class="count" id="dueCount"></span></div>
+        <p class="sub">밤에 알림이 오면 여기서 체크해요. 시간이 없었으면 내일로 미뤄도 괜찮아요.</p>
+        <div class="list" id="due"></div>
+      </section>
+
+      <section data-kid>
+        <div class="head"><h2>수시로</h2></div>
+        <div class="list" id="any"></div>
+      </section>
+
+      <section data-kid>
+        <div class="head"><h2>이번 주 남은 일</h2><a class="cal" href="#plan">요일 바꾸기</a></div>
+        <div class="list" id="rest"></div>
+      </section>
+
+      <section id="sentSec" hidden>
+        <div class="head"><h2>내가 부탁한 일</h2></div>
+        <ul class="feed card" id="sent"></ul>
+      </section>
+
+      <section>
+        <div class="head"><h2>별 모으기</h2><span class="count">일 하나에 별 하나</span></div>
+        <p class="sub" id="feedSub">상대가 한 일에 칭찬 스티커를 보내 보세요.</p>
+        <ul class="feed card" id="feed"></ul>
+      </section>
+
+      <section id="msgSentSec" hidden>
+        <div class="head"><h2>보낸 메시지</h2></div>
+        <ul class="feed card" id="msgSent"></ul>
+      </section>
+
+      <section data-kid>
+        <h2>항상 지키기</h2>
+        <ul class="rules" id="rules"></ul>
+      </section>
+    </div>
+  </main>
+
+  <!-- 계획 -->
+  <main class="view" id="v-plan" hidden>
+    <div class="wrap" style="padding:0">
+      <section>
+        <div class="head"><h2 id="planTitle">다음 주 계획</h2><div class="seg" id="planWeekSeg"><button type="button" data-w="0">이번 주</button><button type="button" data-w="1">다음 주</button></div></div>
+        <p class="sub">바쁜 날은 피해서 골라요. 정한 날에만 알림이 가요.</p>
+      </section>
+      <section>
+        <div class="head"><h3 id="loadTitle">내 요일별 시간</h3></div>
+        <div class="card load" id="load"></div>
+      </section>
+      <section>
+        <div class="list" id="planList"></div>
+      </section>
+      <div class="btnrow"><button type="button" class="btn" id="planConfirm">이대로 정했어요</button><span class="status" id="planStatus"></span></div>
+    </div>
+  </main>
+
+  <!-- 마이페이지 -->
+  <main class="view" id="v-my" hidden>
+    <div class="wrap" style="padding:0">
+      <header class="hero">
+        <div id="myMallang"></div>
+        <div class="bubble"><h1 id="myName">내리</h1><p id="myStars"></p></div>
+      </header>
+
+      <section data-kid>
+        <h2>나는 누구?</h2>
+        <div class="who" role="group" aria-label="나는 누구">
+          <button type="button" data-p="내리" aria-pressed="true">나는 내리</button>
+          <button type="button" data-p="두리" aria-pressed="false">나는 두리</button>
+        </div>
+      </section>
+
+      <section>
+        <h2>내 말랑이 꾸미기</h2>
+        <div class="card">
+          <div class="lookprev" id="lookPreview"></div>
+          <p class="sub">색깔</p>
+          <div class="pickrow" id="lookColors"></div>
+          <p class="sub">액세서리</p>
+          <div class="pickrow" id="lookAccs"></div>
+        </div>
+      </section>
+
+      <section>
+        <h2>알림</h2>
+        <div class="card">
+          <p class="status" id="pushStatus">이 폰의 알림 상태를 확인하는 중이에요.</p>
+          <div class="btnrow"><button type="button" class="btn" id="pushOn">이 폰에서 알림 받기</button><button type="button" class="btn ghost small" id="pushTest" hidden>테스트 알림 보내기</button></div>
+          <div class="field" data-kid><label for="prefAlarm">할 일 알림</label><input type="time" id="prefAlarm"><span class="sub">그날 할 일을 알려줘요</span></div>
+          <div class="field" data-kid><label for="prefCheck">체크 알림</label><input type="time" id="prefCheck"><span class="sub">"오늘 했나요?" 물어봐요</span></div>
+          <div class="field" data-kid><label for="prefPlan">일요일 계획 알림</label><input type="time" id="prefPlan"><span class="sub">두 사람 모두에게</span></div>
+          <p class="sub" data-kid>금요일 할 일 알림 때 이번 주에 남은 일이 있으면 "이번 주가 2일 남았어요"도 함께 보내요.</p>
+        </div>
+      </section>
+
+      <section data-kid>
+        <div class="head"><h2>기본 요일</h2><span class="count">새로 만드는 주부터 적용</span></div>
+        <div class="list" id="defaults"></div>
+        <div class="btnrow"><button type="button" class="btn" id="saveDefaults">기본 요일 저장</button><span class="status" id="defStatus"></span></div>
+      </section>
+
+      <section>
+        <h2>홈 화면에 앱 설치</h2>
+        <div class="card">
+          <p class="sub"><b>아이폰</b>: Safari에서 열고 공유 버튼 → "홈 화면에 추가" → 홈 화면 아이콘으로 열어야 알림을 받을 수 있어요 (iOS 16.4 이상).</p>
+          <p class="sub"><b>안드로이드</b>: Chrome 메뉴 → "앱 설치" 또는 "홈 화면에 추가".</p>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<nav class="tabs" aria-label="메뉴">
+  <a href="#today" data-tab="today"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg>오늘</a>
+  <a href="#plan" data-tab="plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M8 3v4M16 3v4M4 10h16"/></svg><span>계획<span class="dot" id="planDot" hidden></span></span></a>
+  <a href="#my" data-tab="my"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4c4.5 0 7 3 7 7.5S16 20 12 20s-7-4-7-8.5S7.5 4 12 4z"/><path d="M9.5 11.5h.01M14.5 11.5h.01M10 15c1.2 1 2.8 1 4 0"/></svg>마이</a>
+</nav>
+
+<div class="cheer" id="cheer" hidden role="dialog" aria-modal="true" aria-labelledby="cheerMsg">
+  <div class="box">
+    <div id="cheerMallang"></div>
+    <div class="msg" id="cheerMsg">잘했어요!</div>
+    <div class="plus" id="cheerPlus"></div>
+    <div class="row2"><button type="button" class="btn" id="cheerOk">고마워!</button><button type="button" class="btn ghost small" id="cheerUndo">실수로 눌렀어요</button></div>
+  </div>
+</div>
+<div class="cheer" id="askSheet" hidden role="dialog" aria-modal="true" aria-labelledby="askHead">
+  <div class="box sheet">
+    <h2 id="askHead">부탁하기</h2>
+    <p class="sub">무엇을 부탁할까요?</p>
+    <div class="pickrow" id="askTasks"></div>
+    <input type="text" id="askText" maxlength="40" placeholder="직접 쓰기 (예: 택배 상자 버리기)" aria-label="부탁할 일 직접 쓰기">
+    <p class="sub">언제까지?</p>
+    <div class="seg" id="askWhen"><button type="button" data-when="today">오늘</button><button type="button" data-when="tomorrow">내일</button><button type="button" data-when="week">이번 주 안에</button></div>
+    <div class="reqmsg" id="askPreview"></div>
+    <div class="row2"><button type="button" class="btn ghost small" id="askReroll">다른 말투로</button></div>
+    <div class="row2"><button type="button" class="btn" id="askSend">부탁 보내기</button><button type="button" class="btn ghost small" id="askClose">닫기</button></div>
+  </div>
+</div>
+<div class="cheer" id="stSheet" hidden role="dialog" aria-modal="true" aria-labelledby="stHead">
+  <div class="box">
+    <h2 id="stHead">칭찬 스티커 보내기</h2>
+    <p class="sub" id="stSub"></p>
+    <div class="stgrid" id="stGrid"></div>
+    <button type="button" class="btn ghost small" id="stClose">닫기</button>
+  </div>
+</div>
+<div class="cheer" id="msgSheet" hidden role="dialog" aria-modal="true" aria-labelledby="msgHead">
+  <div class="box sheet">
+    <h2 id="msgHead">메시지 보내기</h2>
+    <p class="sub" id="msgToLabel">누구에게?</p>
+    <div class="seg" id="msgTo"></div>
+    <div class="reqmsg" id="msgPreview"></div>
+    <div class="row2"><button type="button" class="btn ghost small" id="msgReroll">다른 말로</button></div>
+    <textarea id="msgText" rows="2" maxlength="200" placeholder="직접 쓰고 싶으면 여기에 써요 (비워 두면 위 메시지가 가요)" aria-label="직접 쓰는 메시지"></textarea>
+    <div class="row2"><button type="button" class="btn" id="msgSend">보내기</button><button type="button" class="btn ghost small" id="msgClose">닫기</button></div>
+  </div>
+</div>
+<div class="toast" id="toast" hidden><span id="toastMsg"></span><button type="button" id="undoBtn">되돌리기</button></div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
