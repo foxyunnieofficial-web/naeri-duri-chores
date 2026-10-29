@@ -2,7 +2,7 @@ import {
   PEOPLE, DAYN, WEEK_ORDER, RULES, PRAISE, DEFAULT_PREFS, D, K, add, diff, mondayOf, fmtDay, other,
   generateWeek, isMine, freqLabel, nudgeText,
   NICK, WHEN, askMessage, askCount, STICKERS, sticker, callName,
-  isParent, genMessage, COLORS, ACCS, DEFAULT_LOOK,
+  isParent, genMessage, COLORS, ACCS, DEFAULT_LOOK, HOME_Q, homeMessage,
 } from "./shared/plan.js";
 import { createStore } from "./store.js";
 
@@ -207,7 +207,7 @@ function showNewStickers() {
     const m = freshM[freshM.length - 1];
     try { localStorage.setItem("seenMsgs:" + me, JSON.stringify([...seenM, ...freshM.map(x => x.id)].slice(-300))); } catch (e) {}
     $("cheerMallang").innerHTML = mallang(m.from_p, "happy", 110, "hop");
-    $("cheerMsg").textContent = `${callName(m.from_p, me)}가 ${m.reply_to ? "답장을" : "메시지를"} 보냈어요 💌`;
+    $("cheerMsg").textContent = m.kind === "home" ? `${callName(m.from_p, me)}의 오늘 소식이에요 🏠` : `${callName(m.from_p, me)}가 ${m.reply_to ? "답장을" : "메시지를"} 보냈어요 💌`;
     $("cheerPlus").textContent = m.msg;
     $("cheerUndo").hidden = true; $("cheer").hidden = false;
     return;
@@ -276,6 +276,10 @@ function renderMessages() {
   $("msgInSec").hidden = !inbox.length;
   $("msgIn").innerHTML = inbox.map(m => {
     const replied = Object.values(S.messages).some(x => x.reply_to === m.id && x.from_p === me);
+    if (m.kind === "home") return `<div class="card msg"><div class="reqfrom">${mallang(m.from_p, "happy", 40, "")}<span>${esc(callName(m.from_p, me))}의 오늘 소식</span><span class="sub">${fmtDay(new Date(m.created_at))}</span></div>
+    <p class="reqmsg">${esc(m.msg)}</p>
+    <div class="btnrow">${m.ack_at ? `<span class="heart">👌 확인했어</span>` : `<button type="button" class="btn small" data-ack="${esc(m.id)}">👌 확인했어</button>`}
+      <button type="button" class="linkbtn" data-delmsg="${esc(m.id)}">삭제</button></div></div>`;
     return `<div class="card msg"><div class="reqfrom">${mallang(m.from_p, "happy", 40, "")}<span>${esc(callName(m.from_p, me))}</span>${m.reply_to ? `<span class="chip">답장</span>` : ""}<span class="sub">${fmtDay(new Date(m.created_at))}</span></div>
     <p class="reqmsg">${esc(m.msg)}</p>
     <div class="btnrow">${m.heart ? `<span class="heart">💖 하트 보냄</span>` : `<button type="button" class="btn small" data-heart="${esc(m.id)}">💖 하트</button>`}
@@ -287,9 +291,35 @@ function renderMessages() {
   $("msgSent").innerHTML = sent.length ? sent.map(m => {
     const back = Object.values(S.messages).some(x => x.reply_to === m.id && x.to_p === me);
     return `<li><span class="chip c-${esc(m.to_p)}">${esc(callName(m.to_p, me))}</span><span>${esc(m.msg.length > 28 ? m.msg.slice(0, 28) + "…" : m.msg)}</span>
-    <span class="when">${fmtDay(new Date(m.created_at))}</span>${m.heart ? `<span class="heart">💖</span>` : ""}${back ? `<span class="heart">답장 옴</span>` : ""}<button type="button" class="linkbtn" data-delmsg="${esc(m.id)}" aria-label="보낸 메시지 삭제">삭제</button></li>`;
+    <span class="when">${fmtDay(new Date(m.created_at))}</span>${m.heart ? `<span class="heart">💖</span>` : ""}${m.ack_at ? `<span class="heart">👌 확인함</span>` : ""}${back ? `<span class="heart">답장 옴</span>` : ""}<button type="button" class="linkbtn" data-delmsg="${esc(m.id)}" aria-label="보낸 메시지 삭제">삭제</button></li>`;
   }).join("") : `<li>아직 보낸 메시지가 없어요.</li>`;
 }
+// ---- 오늘 집 소식 ----
+let homeAns = {};
+function renderHome() {
+  const qs = HOME_Q[me] || [];
+  const to = other(me);
+  const todayK = K(now());
+  const last = Object.values(S.messages).filter(m => m.kind === "home" && m.from_p === me && K(new Date(m.created_at)) === todayK).sort(byTime)[0];
+  $("homeHead").textContent = me === "두리" ? "오늘 밥 소식 알려주기" : "오늘 귀가 소식 알려주기";
+  const ready = qs.every(q => homeAns[q.key]);
+  $("homeCard").innerHTML = (last ? `<p class="sub">오늘 보낸 소식: ${esc(last.msg)} ${last.ack_at ? `<b>· ${esc(callName(to, me))}가 확인했어 👌</b>` : "· 아직 확인 전"}</p>` : "")
+    + qs.map(q => `<div class="field"><span class="homeq">${esc(q.label)}</span><div class="seg">${q.opts.map(([v, t]) =>
+      `<button type="button" data-home="${q.key}:${v}" aria-pressed="${homeAns[q.key] === v}">${esc(t)}</button>`).join("")}</div></div>`).join("")
+    + `<div class="btnrow"><button type="button" class="btn" id="homeSend" ${ready ? "" : "disabled"}>${esc(callName(to))}에게 ${last ? "다시 " : ""}알려주기</button></div>`;
+}
+async function sendHome() {
+  const row = { id: newId("m"), from_p: me, to_p: other(me), msg: homeMessage(me, homeAns), heart: false, reply_to: null, kind: "home", created_at: new Date().toISOString() };
+  S.messages[row.id] = row; homeAns = {}; render();
+  toast(`${callName(row.to_p)}에게 알려줬어요 🏠`, false);
+  try { await store.addMessage(row); store.notify({ msg: row.id }).catch(() => {}); } catch (e) { fail(e); }
+}
+async function ackHome(id) {
+  const m = S.messages[id]; if (!m || m.ack_at) return;
+  m.ack_at = new Date().toISOString(); render(); toast("확인했다고 알려줬어요 👌", false);
+  try { await store.updateMessage(id, { ack_at: m.ack_at }); store.notify({ ack: id }).catch(() => {}); } catch (e) { fail(e); }
+}
+
 // 보낸 메시지를 지우면 받은 사람한테서도 사라지고, 받은 메시지를 지우면 내 화면에서만 사라져요
 async function deleteMsg(id) {
   const m = S.messages[id]; if (!m) return;
@@ -335,6 +365,7 @@ function renderToday() {
   $("starPills").innerHTML = PEOPLE.map(p => `<span class="starpill">${STAR()}${p} ${starsOf(p)}개</span>`).join("");
   $("askRow").innerHTML = `<button type="button" class="btn ask" id="askOpen">${MAIL} ${esc(NICK[other(me)])}에게 부탁하기</button><button type="button" class="btn ask" data-compose="1">💌 메시지 보내기</button>`;
   renderRequests();
+  renderHome();
 
   // 일요일(토·일) 다음 주 계획 안내
   const nextWk = K(add(thisMonday(), 7));
@@ -641,6 +672,9 @@ document.addEventListener("click", e => {
   if (el.id === "msgClose") { $("msgSheet").hidden = true; return; }
   if (el.dataset.heart) return sendHeart(el.dataset.heart);
   if (el.dataset.delmsg) return deleteMsg(el.dataset.delmsg);
+  if (el.dataset.home) { const [k, v] = el.dataset.home.split(":"); homeAns[k] = v; return renderHome(); }
+  if (el.id === "homeSend") return sendHome();
+  if (el.dataset.ack) return ackHome(el.dataset.ack);
   if (el.dataset.color) return setLook({ color: el.dataset.color });
   if (el.dataset.acc) return setLook({ acc: el.dataset.acc });
   if (el.dataset.asktask) {
@@ -667,7 +701,7 @@ document.addEventListener("click", e => {
     $("defaults").dataset.dirty = "1"; $("defStatus").textContent = "저장 버튼을 눌러야 바뀌어요"; $("defStatus").className = "status";
     return;
   }
-  if (el.dataset.p && !PARENT) { me = el.dataset.p; try { localStorage.setItem("me", me); } catch (x) {} return route(); }
+  if (el.dataset.p && !PARENT) { me = el.dataset.p; try { localStorage.setItem("me", me); } catch (x) {} route(); return showNewStickers(); }
 });
 $("defaults").addEventListener("input", () => { $("defaults").dataset.dirty = "1"; });
 $("undoBtn").addEventListener("click", doUndo);

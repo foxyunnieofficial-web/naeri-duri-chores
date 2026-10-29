@@ -7,7 +7,7 @@ import webpush from "npm:web-push@3.6.7";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import {
   DEFAULT_CHORES, DEFAULT_PREFS, PEOPLE, K, add, mondayOf, generateWeek, isMine, nudgeText,
-  askTitle, replyMessage, replyTitle, didTitle, sticker, callName, other, PARENTS, appUrl, msgTitle,
+  askTitle, replyMessage, replyTitle, didTitle, sticker, callName, other, PARENTS, appUrl, msgTitle, homeTitle, ackTitle,
 } from "../_shared/plan.js";
 
 const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
@@ -119,7 +119,15 @@ Deno.serve(async req => {
     if (!m || !(await once(`msg:${id}:${heart ? "heart" : "send"}`))) return Response.json({ sent: 0 });
     const n = heart
       ? await sendTo({ person: m.from_p }, { title: `${callName(m.to_p, m.from_p)}가 메시지에 하트를 보냈어요 💖`, body: m.msg.slice(0, 60), tag: `heart-${id}`, url: appUrl(m.from_p) })
-      : await sendTo({ person: m.to_p }, { title: msgTitle(m.from_p, m.to_p, !!m.reply_to), body: m.msg, tag: `msg-${id}`, url: appUrl(m.to_p) });
+      : await sendTo({ person: m.to_p }, { title: m.kind === "home" ? homeTitle(m.from_p) : msgTitle(m.from_p, m.to_p, !!m.reply_to), body: m.msg, tag: `msg-${id}`, url: appUrl(m.to_p) });
+    return Response.json({ sent: n });
+  }
+  // 오늘 집 소식에 "확인했어" → 보낸 사람에게
+  if (body.ack) {
+    const id = String(body.ack);
+    const { data: m } = await sb.from("messages").select("*").eq("id", id).maybeSingle();
+    if (!m || !m.ack_at || !(await once(`msg:${id}:ack`))) return Response.json({ sent: 0 });
+    const n = await sendTo({ person: m.from_p }, { title: ackTitle(m.to_p), body: m.msg.slice(0, 60), tag: `ack-${id}`, url: appUrl(m.from_p) });
     return Response.json({ sent: n });
   }
 

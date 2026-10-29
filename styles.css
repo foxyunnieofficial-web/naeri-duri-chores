@@ -234,3 +234,7 @@ html, body { min-height: 100%; }
 .admin .links li { display: flex; gap: 8px; align-items: center; min-width: 0; }
 .admin .links a { overflow-wrap: anywhere; font-size: 13.5px; }
 .admin .check { display: flex; gap: 8px; align-items: flex-start; font-size: 13.5px; color: var(--muted); margin: 12px 0 0; }
+.card.home .homeq { font-family: var(--display); font-size: 16px; min-width: 36px; }
+.btn:disabled { opacity: .45; cursor: default; }
+.card.home .seg { display: flex; flex-wrap: wrap; gap: 6px; padding: 0; border: 0; background: none; }
+.card.home .seg button { white-space: nowrap; padding: 6px 12px; border: 2px solid var(--line); }

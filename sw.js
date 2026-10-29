@@ -3,7 +3,7 @@ importScripts("config.js");
 const CFG = self.APP_CONFIG || {};
 const PRAISE = ["잘했어요!", "최고!", "역시 너밖에 없어", "오늘도 해냈다!", "집이 반짝반짝해졌어요", "말랑이가 감동했어요", "이 집의 자랑!", "해낼 줄 알았어!"];
 const SHELL = ["./", "index.html", "styles.css", "app.js", "store.js", "shared/plan.js", "config.js", "manifest.webmanifest", "mom.html", "dad.html", "manifest-mom.webmanifest", "manifest-dad.webmanifest", "icons/icon-192.png"];
-const CACHE = "nd-v5";
+const CACHE = "nd-v6";
 
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).catch(() => {})); self.skipWaiting(); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k))))); self.clients.claim(); });

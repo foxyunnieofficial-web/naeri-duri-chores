@@ -254,3 +254,29 @@ export const COLORS = {
 };
 export const ACCS = { none: "없음", ribbon: "리본", sprout: "새싹", crown: "왕관", beret: "베레모", glasses: "안경", flower: "꽃", headphones: "헤드폰", star: "별 핀" };
 export const DEFAULT_LOOK = { "내리": { color: "peach", acc: "ribbon" }, "두리": { color: "sky", acc: "sprout" }, "엄마": { color: "lilac", acc: "flower" }, "아빠": { color: "cocoa", acc: "glasses" }, "같이": { color: "mint", acc: "none" } };
+
+// ---- 오늘 집 소식 ----
+// 두리는 점심·저녁을 집에서 먹는지, 내리는 오늘 집에 들어오는지 알려줘요
+export const HOME_Q = {
+  "두리": [
+    { key: "lunch", label: "점심", opts: [["home", "집에서 먹어"], ["out", "밖에서 먹어"]] },
+    { key: "dinner", label: "저녁", opts: [["home", "집에서 먹어"], ["out", "밖에서 먹어"]] },
+  ],
+  "내리": [
+    { key: "home", label: "오늘", opts: [["yes", "집에 들어가"], ["late", "늦게 들어가"], ["no", "안 들어가"]] },
+  ],
+};
+export function homeMessage(from, a) {
+  if (from === "두리") {
+    const meal = k => (a[k] === "home" ? "집에서" : "밖에서");
+    const tail = a.lunch === "home" || a.dinner === "home" ? "밥 같이 먹자 🍚💕" : "오늘은 밖에서 냠냠하고 올게 🍽️💕";
+    return `언니~ 두리 오늘 점심은 ${meal("lunch")}, 저녁은 ${meal("dinner")} 먹어! ${tail}`;
+  }
+  return {
+    yes: "세계최고귀염둥이두리야~ 언니 오늘 집에 들어가! 🏠 이따 보자 💖",
+    late: "세계최고귀염둥이두리야, 언니 오늘 좀 늦게 들어가 🌙 먼저 자도 돼! 사랑해 💕",
+    no: "세계최고귀염둥이두리야, 언니 오늘은 집에 못 들어가 🥺 문단속 꼭 하고 푹 자! 사랑해 💗",
+  }[a.home];
+}
+export const homeTitle = from => (from === "두리" ? "두리의 오늘 밥 소식 🍚" : "언니의 오늘 귀가 소식 🏠");
+export const ackTitle = by => `${callName(by)}가 확인했어 👌`;
