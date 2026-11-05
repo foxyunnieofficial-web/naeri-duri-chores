@@ -67,11 +67,6 @@
         <ul class="feed card" id="sent"></ul>
       </section>
 
-      <section>
-        <div class="head"><h2>별 모으기</h2><span class="count">일 하나에 별 하나</span></div>
-        <p class="sub" id="feedSub">상대가 한 일에 칭찬 스티커를 보내 보세요.</p>
-        <ul class="feed card" id="feed"></ul>
-      </section>
 
       <section id="msgSentSec" hidden>
         <div class="head"><h2>보낸 메시지</h2></div>
@@ -191,6 +186,14 @@
     <div class="reqmsg" id="askPreview"></div>
     <div class="row2"><button type="button" class="btn ghost small" id="askReroll">다른 말투로</button></div>
     <div class="row2"><button type="button" class="btn" id="askSend">부탁 보내기</button><button type="button" class="btn ghost small" id="askClose">닫기</button></div>
+  </div>
+</div>
+<div class="cheer" id="starSheet" hidden role="dialog" aria-modal="true" aria-labelledby="starHead">
+  <div class="box sheet">
+    <h2 id="starHead">별 기록</h2>
+    <p class="sub" id="starSub"></p>
+    <ul class="feed card" id="feed"></ul>
+    <button type="button" class="btn ghost small" id="starClose">닫기</button>
   </div>
 </div>
 <div class="cheer" id="stSheet" hidden role="dialog" aria-modal="true" aria-labelledby="stHead">

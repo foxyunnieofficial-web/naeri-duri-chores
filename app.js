@@ -352,7 +352,6 @@ function renderParentToday() {
   const done = S.logs.filter(l => l.date === K(now()));
   $("heroMallang").innerHTML = mallang(me, "happy", 112);
   $("greet").textContent = done.length ? `${me}, 오늘 딸들이 집안일 ${done.length}개 했어요!` : `${me}, 오늘 딸들 소식을 기다려요`;
-  $("feedSub").textContent = "딸들이 한 일에 칭찬 스티커를 보내 보세요.";
 }
 
 function renderToday() {
@@ -363,11 +362,10 @@ function renderToday() {
   if (par) {
     $("inboxSec").hidden = true; $("sentSec").hidden = true; $("weekBanner").hidden = true; $("planDot").hidden = true;
     $("today").textContent = `${now().getMonth() + 1}월 ${now().getDate()}일 ${DAYN[now().getDay()]}요일`;
-    $("starPills").innerHTML = PEOPLE.map(p => `<span class="starpill">${STAR()}${p} ${starsOf(p)}개</span>`).join("");
+    $("starPills").innerHTML = PEOPLE.map(p => `<button type="button" class="starpill" data-stars="${p}" aria-label="${p} 별 ${starsOf(p)}개, 기록 보기">${STAR()}${p} ${starsOf(p)}개</button>`).join("");
     renderParentToday(); renderFeed();
     return;
   }
-  $("feedSub").textContent = "다른 사람이 한 일에 칭찬 스티커를 보내 보세요.";
   const today = now();
   $("today").textContent = `${today.getMonth() + 1}월 ${today.getDate()}일 ${DAYN[today.getDay()]}요일`;
   const due = dueTasks();
@@ -376,7 +374,7 @@ function renderToday() {
   const moved = due.some(t => (t.postpone_count || 0) >= 2);
   $("heroMallang").innerHTML = mallang(me, n === 0 ? "happy" : moved ? "worried" : "normal", 112);
   $("greet").textContent = n === 0 ? `${me}야, 오늘 할 일 끝! 푹 쉬어` : `${me}야, 오늘 할 일 ${n}개 남았어`;
-  $("starPills").innerHTML = PEOPLE.map(p => `<span class="starpill">${STAR()}${p} ${starsOf(p)}개</span>`).join("");
+  $("starPills").innerHTML = PEOPLE.map(p => `<button type="button" class="starpill" data-stars="${p}" aria-label="${p} 별 ${starsOf(p)}개, 기록 보기">${STAR()}${p} ${starsOf(p)}개</button>`).join("");
   $("askRow").innerHTML = `<button type="button" class="btn ask" id="askOpen">${MAIL} ${esc(NICK[other(me)])}에게 부탁하기</button><button type="button" class="btn ask" data-compose="1">💌 메시지 보내기</button>`;
   renderRequests();
   renderHome();
@@ -421,13 +419,20 @@ function renderToday() {
   renderFeed();
   $("rules").innerHTML = RULES.map(r => `<li>${esc(r)}</li>`).join("");
 }
+// 위쪽 별 개수를 누르면 그 사람의 별 기록이 떠요
+let starWho = null;
+function openStars(p) { starWho = p; renderFeed(); $("starSheet").hidden = false; }
 function renderFeed() {
-  const recent = [...S.logs].sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 8);
+  if (!starWho) return;
+  const recent = S.logs.filter(l => l.by === starWho).sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 40);
+  const stickerCount = S.stickers.filter(x => x.to_p === starWho).length;
+  $("starHead").textContent = `${starWho}의 별 ${starsOf(starWho)}개`;
+  $("starSub").textContent = `받은 칭찬 스티커 ${stickerCount}개${starWho !== me ? " · 칭찬하기로 스티커를 보내 봐요" : ""}`;
   $("feed").innerHTML = recent.length ? recent.map(l => {
     const got = S.stickers.filter(x => x.log_id === l.id).map(x => sticker(x.kind).e).join("");
     const btn = l.by !== me ? `<button type="button" class="btn ghost small" data-praise="${esc(l.id)}">칭찬하기</button>` : "";
-    return `<li>${STAR()}${whoChip(l.by)}<span>${esc(logName(l))}</span>${got ? `<span class="stk" aria-label="받은 스티커">${got}</span>` : ""}<span class="when">${fmtDay(D(l.date))}</span>${btn}</li>`;
-  }).join("") : `<li>아직 모은 별이 없어요. 첫 번째 별의 주인공은 누구?</li>`;
+    return `<li>${STAR()}<span>${esc(logName(l))}</span>${got ? `<span class="stk" aria-label="받은 스티커">${got}</span>` : ""}<span class="when">${fmtDay(D(l.date))}</span>${btn}</li>`;
+  }).join("") : `<li>아직 모은 별이 없어요. 첫 번째 별을 모아 봐요!</li>`;
 }
 
 // ---- 화면: 계획 ----
@@ -720,6 +725,8 @@ document.addEventListener("click", e => {
   if (el.dataset.reqdone) return answerRequest(el.dataset.reqdone, true);
   if (el.dataset.reqno) return answerRequest(el.dataset.reqno, false);
   if (el.dataset.reqcancel) return cancelRequest(el.dataset.reqcancel);
+  if (el.dataset.stars) return openStars(el.dataset.stars);
+  if (el.id === "starClose") { $("starSheet").hidden = true; starWho = null; return; }
   if (el.dataset.praise) return openPraise(el.dataset.praise);
   if (el.dataset.stk) return sendSticker(el.dataset.stk);
   if (el.dataset.done) return complete(el.dataset.done);

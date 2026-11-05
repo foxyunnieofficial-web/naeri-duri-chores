@@ -240,3 +240,6 @@ html, body { min-height: 100%; }
 .card.home .seg button { white-space: nowrap; padding: 6px 12px; border: 2px solid var(--line); }
 .pushhelp { padding: 10px 12px; border-radius: 14px; background: var(--alt-soft); color: var(--alt-deep); font-size: 13.5px; font-weight: 600; }
 .card.msg.kept { border-color: var(--line); }
+button.starpill { font: inherit; font-size: 14px; font-weight: 600; color: var(--fg); cursor: pointer; }
+button.starpill::after { content: "›"; color: var(--muted); margin-left: 2px; }
+#starSheet .feed { max-height: 55vh; overflow-y: auto; }
