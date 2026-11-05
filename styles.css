@@ -238,3 +238,5 @@ html, body { min-height: 100%; }
 .btn:disabled { opacity: .45; cursor: default; }
 .card.home .seg { display: flex; flex-wrap: wrap; gap: 6px; padding: 0; border: 0; background: none; }
 .card.home .seg button { white-space: nowrap; padding: 6px 12px; border: 2px solid var(--line); }
+.pushhelp { padding: 10px 12px; border-radius: 14px; background: var(--alt-soft); color: var(--alt-deep); font-size: 13.5px; font-weight: 600; }
+.card.msg.kept { border-color: var(--line); }

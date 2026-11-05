@@ -267,25 +267,39 @@ async function sendMsg() {
   const at = new Date().toISOString();
   const rows = tos.map(to => ({ id: newId("m"), from_p: me, to_p: to, msg: custom || msg.text, heart: false, reply_to: msg.reply, created_at: at }));
   rows.forEach(r => { S.messages[r.id] = r; });
+  const orig = msg.reply && S.messages[msg.reply];
+  const archive = orig && !orig.ack_at ? (orig.ack_at = at) : null;
   $("msgSheet").hidden = true; render();
   toast(`${tos.map(t => callName(t, me)).join("·")}에게 ${msg.reply ? "답장을" : "메시지를"} 보냈어요 💌`, false);
-  try { for (const r of rows) { await store.addMessage(r); store.notify({ msg: r.id }).catch(() => {}); } } catch (e) { fail(e); }
+  try {
+    for (const r of rows) { await store.addMessage(r); store.notify({ msg: r.id }).catch(() => {}); }
+    if (archive) await store.updateMessage(orig.id, { ack_at: archive });
+  } catch (e) { fail(e); }
 }
 function renderMessages() {
-  const inbox = Object.values(S.messages).filter(m => m.to_p === me && !m.del_to).sort(byTime).slice(0, 4);
+  // 아직 확인 안 한 메시지만 메인에, 확인한 건 마이 탭 보관함에
+  const received = Object.values(S.messages).filter(m => m.to_p === me && !m.del_to).sort(byTime);
+  const inbox = received.filter(m => !m.ack_at);
   $("msgInSec").hidden = !inbox.length;
   $("msgIn").innerHTML = inbox.map(m => {
     const replied = Object.values(S.messages).some(x => x.reply_to === m.id && x.from_p === me);
     if (m.kind === "home") return `<div class="card msg"><div class="reqfrom">${mallang(m.from_p, "happy", 40, "")}<span>${esc(callName(m.from_p, me))}의 오늘 소식</span><span class="sub">${fmtDay(new Date(m.created_at))}</span></div>
     <p class="reqmsg">${esc(m.msg)}</p>
-    <div class="btnrow">${m.ack_at ? `<span class="heart">👌 확인했어</span>` : `<button type="button" class="btn small" data-ack="${esc(m.id)}">👌 확인했어</button>`}
+    <div class="btnrow"><button type="button" class="btn small" data-ack="${esc(m.id)}">👌 확인했어</button>
       <button type="button" class="linkbtn" data-delmsg="${esc(m.id)}">삭제</button></div></div>`;
     return `<div class="card msg"><div class="reqfrom">${mallang(m.from_p, "happy", 40, "")}<span>${esc(callName(m.from_p, me))}</span>${m.reply_to ? `<span class="chip">답장</span>` : ""}<span class="sub">${fmtDay(new Date(m.created_at))}</span></div>
     <p class="reqmsg">${esc(m.msg)}</p>
-    <div class="btnrow">${m.heart ? `<span class="heart">💖 하트 보냄</span>` : `<button type="button" class="btn small" data-heart="${esc(m.id)}">💖 하트</button>`}
+    <div class="btnrow"><button type="button" class="btn small" data-ack="${esc(m.id)}">👌 확인</button>${m.heart ? "" : `<button type="button" class="btn small" data-heart="${esc(m.id)}">💖 하트</button>`}
       <button type="button" class="btn ghost small" data-reply="${esc(m.id)}">${replied ? "또 답장하기" : "답장하기"}</button>
       <button type="button" class="linkbtn" data-delmsg="${esc(m.id)}">삭제</button></div></div>`;
   }).join("");
+  const kept = received.filter(m => m.ack_at).slice(0, 30);
+  $("archiveCount").textContent = kept.length ? `${kept.length}개` : "";
+  $("archive").innerHTML = kept.length ? kept.map(m => `<div class="card msg kept"><div class="reqfrom">${mallang(m.from_p, "happy", 32, "")}<span>${esc(callName(m.from_p, me))}${m.kind === "home" ? "의 오늘 소식" : ""}</span><span class="sub">${fmtDay(new Date(m.created_at))}</span></div>
+    <p class="reqmsg">${esc(m.msg)}</p>
+    <div class="btnrow"><span class="heart">${m.heart ? "💖 하트 보냄" : "👌 확인함"}</span>${m.kind === "home" ? "" : `<button type="button" class="btn ghost small" data-reply="${esc(m.id)}">답장하기</button>`}
+      <button type="button" class="linkbtn" data-delmsg="${esc(m.id)}">삭제</button></div></div>`).join("")
+    : `<div class="empty">아직 보관한 메시지가 없어요.</div>`;
   const sent = Object.values(S.messages).filter(m => m.from_p === me).sort(byTime).slice(0, 6);
   $("msgSentSec").hidden = !sent.length && !isPar();
   $("msgSent").innerHTML = sent.length ? sent.map(m => {
@@ -316,7 +330,7 @@ async function sendHome() {
 }
 async function ackHome(id) {
   const m = S.messages[id]; if (!m || m.ack_at) return;
-  m.ack_at = new Date().toISOString(); render(); toast("확인했다고 알려줬어요 👌", false);
+  m.ack_at = new Date().toISOString(); render(); toast("확인했다고 알려줬어요 👌 보관함으로 옮겼어요", false);
   try { await store.updateMessage(id, { ack_at: m.ack_at }); store.notify({ ack: id }).catch(() => {}); } catch (e) { fail(e); }
 }
 
@@ -331,8 +345,8 @@ async function deleteMsg(id) {
 }
 async function sendHeart(id) {
   const m = S.messages[id]; if (!m || m.heart) return;
-  m.heart = true; render(); toast(`${callName(m.from_p, me)}에게 하트를 보냈어요 💖`, false);
-  try { await store.updateMessage(id, { heart: true }); store.notify({ heart: id }).catch(() => {}); } catch (e) { fail(e); }
+  m.heart = true; m.ack_at = m.ack_at || new Date().toISOString(); render(); toast(`${callName(m.from_p, me)}에게 하트를 보냈어요 💖 보관함으로 옮겼어요`, false);
+  try { await store.updateMessage(id, { heart: true, ack_at: m.ack_at }); store.notify({ heart: id }).catch(() => {}); } catch (e) { fail(e); }
 }
 function renderParentToday() {
   const done = S.logs.filter(l => l.date === K(now()));
@@ -602,31 +616,50 @@ async function saveDefaults() {
 
 // ---- 푸시 ----
 const b64 = s => { const p = "=".repeat((4 - (s.length % 4)) % 4); const r = atob((s + p).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from([...r].map(ch => ch.charCodeAt(0))); };
+// 서비스 워커가 늦게 뜨거나 없으면 기다리다 멈추지 않게
+const swReady = () => Promise.race([navigator.serviceWorker.ready, new Promise((_, no) => setTimeout(() => no(new Error("sw")), 5000))]);
+const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+const standalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+let pushState = "checking";
+function pushHelpText() {
+  if (pushState === "local") return "알림 서버가 아직 연결되지 않았어요.";
+  if (pushState === "unsupported") return isIOS && !standalone()
+    ? "아이폰은 Safari에서 공유 버튼 → \"홈 화면에 추가\"를 누르고, 홈 화면에 생긴 말랑이 아이콘으로 앱을 연 다음 이 버튼을 다시 눌러 주세요. (iOS 16.4 이상)"
+    : "이 브라우저는 알림을 지원하지 않아요. 아이폰은 Safari, 안드로이드는 Chrome으로 열어 주세요.";
+  if (pushState === "denied") return isIOS
+    ? "알림이 꺼져 있어요. 아이폰 설정 → 알림 → 내리두리 → \"알림 허용\"을 켠 다음 앱을 다시 열어 주세요."
+    : "알림이 꺼져 있어요. 주소창 옆 자물쇠(또는 폰 설정 → 앱 → 내리두리 → 알림)에서 알림을 허용한 다음 다시 눌러 주세요.";
+  return "";
+}
 async function refreshPushStatus() {
   const st = $("pushStatus"), on = $("pushOn"), test = $("pushTest");
   const set = (t, cls) => { st.textContent = t; st.className = "status " + (cls || ""); };
-  if (store.kind !== "server") { set("알림 서버가 아직 연결되지 않았어요. 연결되면 여기서 켤 수 있어요.", "bad"); on.hidden = true; return; }
-  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-    set("이 화면에서는 알림을 받을 수 없어요. 아이폰은 홈 화면에 추가한 앱 아이콘으로 열어 주세요.", "bad"); on.hidden = true; return;
+  on.hidden = false; test.hidden = true;
+  if (store.kind !== "server") { pushState = "local"; return set("알림 서버가 아직 연결되지 않았어요.", "bad"); }
+  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+    pushState = "unsupported"; return set(isIOS && !standalone() ? "홈 화면에 추가한 앱으로 열어야 알림을 받을 수 있어요." : "이 화면에서는 알림을 받을 수 없어요.", "bad");
   }
-  const reg = await navigator.serviceWorker.ready;
-  const sub = await reg.pushManager.getSubscription();
+  if (Notification.permission === "denied") { pushState = "denied"; return set("알림이 꺼져 있어요. 아래 버튼을 눌러 켜는 방법을 봐요.", "bad"); }
+  let sub = null;
+  try { sub = await (await swReady()).pushManager.getSubscription(); } catch (e) {}
   if (sub && Notification.permission === "granted") {
-    set(`이 폰으로 ${me} 알림을 받고 있어요.`, "good"); on.hidden = true; test.hidden = false;
+    pushState = "on"; set(`이 폰으로 ${me} 알림을 받고 있어요.`, "good"); on.hidden = true; test.hidden = false; $("pushHelp").hidden = true;
     const j = sub.toJSON();
     if (localStorage.getItem("subPerson") !== me) { await store.saveSub({ endpoint: j.endpoint, person: me, p256dh: j.keys.p256dh, auth: j.keys.auth }); localStorage.setItem("subPerson", me); }
-  } else {
-    set(Notification.permission === "denied" ? "알림이 꺼져 있어요. 폰 설정에서 이 앱의 알림을 허용해 주세요." : "아직 이 폰에서 알림을 받지 않고 있어요.", Notification.permission === "denied" ? "bad" : "");
-    on.hidden = Notification.permission === "denied"; test.hidden = true;
-  }
+  } else { pushState = "off"; set("아직 이 폰에서 알림을 받지 않고 있어요. 버튼을 눌러 허용해 주세요."); }
 }
 async function enablePush() {
+  const help = pushHelpText();
+  $("pushHelp").textContent = help; $("pushHelp").hidden = !help;
+  if (help) return;
   try {
+    // 아이폰은 버튼을 누른 바로 그 순간에 물어봐야 해서 권한부터 물어요
     const perm = await Notification.requestPermission();
     if (perm !== "granted") return refreshPushStatus();
+    if (!navigator.serviceWorker.controller) await navigator.serviceWorker.register("sw.js");
     const key = await store.publicKey();
     if (!key) { toast("알림 서버가 아직 준비 중이에요. 잠시 뒤 다시 눌러 주세요.", false); return; }
-    const reg = await navigator.serviceWorker.ready;
+    const reg = await swReady();
     const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(key) });
     const j = sub.toJSON();
     await store.saveSub({ endpoint: j.endpoint, person: me, p256dh: j.keys.p256dh, auth: j.keys.auth });

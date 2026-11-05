@@ -120,6 +120,19 @@
       </section>
 
       <section>
+        <h2>알림</h2>
+        <div class="card">
+          <p class="status" id="pushStatus">이 폰의 알림 상태를 확인하는 중이에요.</p>
+          <div class="btnrow"><button type="button" class="btn" id="pushOn">🔔 알림 허용하기</button><button type="button" class="btn ghost small" id="pushTest" hidden>테스트 알림 보내기</button></div>
+          <div class="pushhelp" id="pushHelp" hidden></div>
+          <div class="field" data-kid><label for="prefAlarm">할 일 알림</label><input type="time" id="prefAlarm"><span class="sub">그날 할 일을 알려줘요</span></div>
+          <div class="field" data-kid><label for="prefCheck">체크 알림</label><input type="time" id="prefCheck"><span class="sub">"오늘 했나요?" 물어봐요</span></div>
+          <div class="field" data-kid><label for="prefPlan">일요일 계획 알림</label><input type="time" id="prefPlan"><span class="sub">두 사람 모두에게</span></div>
+          <p class="sub" data-kid>금요일 할 일 알림 때 이번 주에 남은 일이 있으면 "이번 주가 2일 남았어요"도 함께 보내요.</p>
+        </div>
+      </section>
+
+      <section>
         <h2>내 말랑이 꾸미기</h2>
         <div class="card">
           <div class="lookprev" id="lookPreview"></div>
@@ -131,15 +144,9 @@
       </section>
 
       <section>
-        <h2>알림</h2>
-        <div class="card">
-          <p class="status" id="pushStatus">이 폰의 알림 상태를 확인하는 중이에요.</p>
-          <div class="btnrow"><button type="button" class="btn" id="pushOn">이 폰에서 알림 받기</button><button type="button" class="btn ghost small" id="pushTest" hidden>테스트 알림 보내기</button></div>
-          <div class="field" data-kid><label for="prefAlarm">할 일 알림</label><input type="time" id="prefAlarm"><span class="sub">그날 할 일을 알려줘요</span></div>
-          <div class="field" data-kid><label for="prefCheck">체크 알림</label><input type="time" id="prefCheck"><span class="sub">"오늘 했나요?" 물어봐요</span></div>
-          <div class="field" data-kid><label for="prefPlan">일요일 계획 알림</label><input type="time" id="prefPlan"><span class="sub">두 사람 모두에게</span></div>
-          <p class="sub" data-kid>금요일 할 일 알림 때 이번 주에 남은 일이 있으면 "이번 주가 2일 남았어요"도 함께 보내요.</p>
-        </div>
+        <div class="head"><h2>메시지 보관함</h2><span class="count" id="archiveCount"></span></div>
+        <p class="sub">확인하거나 하트·답장한 메시지는 여기로 와요.</p>
+        <div class="list" id="archive"></div>
       </section>
 
       <section data-kid>

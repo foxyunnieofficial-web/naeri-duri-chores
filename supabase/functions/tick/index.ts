@@ -127,7 +127,7 @@ Deno.serve(async req => {
     const id = String(body.ack);
     const { data: m } = await sb.from("messages").select("*").eq("id", id).maybeSingle();
     if (!m || !m.ack_at || !(await once(`msg:${id}:ack`))) return Response.json({ sent: 0 });
-    const n = await sendTo({ person: m.from_p }, { title: ackTitle(m.to_p), body: m.msg.slice(0, 60), tag: `ack-${id}`, url: appUrl(m.from_p) });
+    const n = await sendTo({ person: m.from_p }, { title: ackTitle(m.to_p, m.from_p), body: m.msg.slice(0, 60), tag: `ack-${id}`, url: appUrl(m.from_p) });
     return Response.json({ sent: n });
   }
 

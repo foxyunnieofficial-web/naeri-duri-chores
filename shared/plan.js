@@ -279,4 +279,4 @@ export function homeMessage(from, a) {
   }[a.home];
 }
 export const homeTitle = from => (from === "두리" ? "두리의 오늘 밥 소식 🍚" : "언니의 오늘 귀가 소식 🏠");
-export const ackTitle = by => `${callName(by)}가 확인했어 👌`;
+export const ackTitle = (by, to = "") => `${callName(by, to)}가 확인했어 👌`;
