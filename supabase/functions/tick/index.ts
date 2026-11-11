@@ -213,7 +213,7 @@ Deno.serve(async req => {
       const lastMon = add(mondayOf(today), -7);
       const [{ data: wkTasks }, { data: wkLogs }] = await Promise.all([
         sb.from("tasks").select("*").eq("week", K(lastMon)),
-        sb.from("logs").select("*").gte("date", K(lastMon)).lt("date", todayK),
+        sb.from("logs").select("*").gte("date", K(lastMon)),
       ]);
       const r = weekReport(chores, wkTasks ?? [], wkLogs ?? [], p, lastMon, today, "지난주");
       const missed = r.missed.reduce((a, i) => a + i.count, 0);

@@ -286,18 +286,20 @@ export const ackTitle = (by, to = "") => `${callName(by, to)}가 확인했어 �
 // monday 주(월~일)에 person이 한 일과 안 한 일. tasks는 그 주의 할 일, logs는 별 기록.
 // upTo(포함 안 함)까지만 셉니다. 지난주면 다음 주 월요일, 이번 주면 오늘.
 export function weekReport(chores, tasks, logs, person, monday, upTo = add(monday, 7), label = "이번 주") {
-  const wk = K(monday), endK = K(add(monday, 7)), upK = K(upTo);
+  const wk = K(monday), upK = K(upTo);
   const find = id => chores.find(c => c.id === id);
   const tally = list => {
     const m = new Map();
     for (const name of list) m.set(name, (m.get(name) || 0) + 1);
     return [...m].map(([name, count]) => ({ name, count }));
   };
-  const mine = logs.filter(l => l.by === person && l.date >= wk && l.date < endK);
+  // 정해진 일을 한 기록은 그 일이 속한 주로 세요 (일요일 일을 월요일에 체크해도 지난주에 한 걸로)
+  const weekOfTask = new Map(tasks.map(t => [t.id, t.week]));
+  const weekOf = l => (l.task_id && weekOfTask.has(l.task_id) ? weekOfTask.get(l.task_id) : K(mondayOf(D(l.date))));
+  const mine = logs.filter(l => l.by === person && weekOf(l) === wk);
   const done = tally(mine.map(l => l.title || find(l.chore_id)?.name || l.chore_id));
-  // 정해진 날에 못 한 일 (주가 끝난 뒤 늦게 한 것도 그 주에는 못 한 걸로)
-  const missedTasks = tasks.filter(t => t.week === wk && isMine(t.who, person) && t.day < upK
-    && (t.status === "todo" || (t.done_at && t.done_at.slice(0, 10) >= endK)));
+  // 아직 안 한 일만 못 한 일로 세요 (늦게라도 했으면 한 일)
+  const missedTasks = tasks.filter(t => t.week === wk && isMine(t.who, person) && t.day < upK && t.status === "todo");
   const missedNames = missedTasks.map(t => find(t.chore_id)?.name || t.chore_id);
   // 매일 하는 일은 빠진 날 수. 시각이 정해진 일(환기)만 세고, 필요할 때 하는 일(그릇 정리)은 안 세요
   const days = Math.max(0, Math.min(7, diff(upTo, monday)));
