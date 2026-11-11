@@ -359,3 +359,4 @@ section > .head h2 { font-size: 15px; }
 .cmpbar .c-내리 { background: var(--naeri); } .cmpbar .c-두리 { background: var(--duri); }
 @media (max-width: 360px) { .repcols, .compare { grid-template-columns: 1fr; } }
 #repMine { display: flex; flex-direction: column; gap: 36px; }
+.repcompare { padding-top: 16px; border-top: 1px solid var(--line); }
