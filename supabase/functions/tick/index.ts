@@ -2,12 +2,12 @@
 // - 할 일 알림: 그날 할 일이 있으면
 // - 체크 알림: 오늘까지 할 일이 남아 있으면 "했나요?" (했어요/내일로 버튼)
 // - 금요일 할 일 알림 시각: 이번 주 남은 일이 있으면 "이번 주가 2일 남았어요"
-// - 일요일 계획 알림 시각: 다음 주 요일 정하기
+// - 월요일 리포트 알림 시각: 지난주에 한 일·못 한 일
 import webpush from "npm:web-push@3.6.7";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import {
   DEFAULT_CHORES, DEFAULT_PREFS, PEOPLE, K, add, mondayOf, generateWeek, isMine, nudgeText,
-  askTitle, replyMessage, replyTitle, didTitle, sticker, callName, other, PARENTS, appUrl, msgTitle, homeTitle, ackTitle,
+  askTitle, replyMessage, replyTitle, didTitle, sticker, callName, other, PARENTS, appUrl, msgTitle, homeTitle, ackTitle, weekReport,
 } from "../_shared/plan.js";
 
 const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
@@ -208,12 +208,17 @@ Deno.serve(async req => {
       }
     }
 
-    if (dow === 0 && inWindow(nowMin, prefs.plan || "21:00")) {
-      const { data: w } = await sb.from("weeks").select("planned").eq("monday", K(add(mondayOf(today), 7))).maybeSingle();
-      if (!w?.planned && await once(`${todayK}:${p}:plan`)) {
-        await sendTo({ person: p }, { title: "다음 주 할 일, 무슨 요일에 할까요?", body: "바쁜 날은 피해서 골라요. 안 고르면 기본 요일로 알려줄게요", tag: "plan", url: "./#plan" });
-        out.push(`${p}:plan`);
-      }
+    // 월요일: 지난주 리포트 (예전의 일요일 계획 알림 대신)
+    if (dow === 1 && inWindow(nowMin, prefs.report || "09:00") && await once(`${todayK}:${p}:report`)) {
+      const lastMon = add(mondayOf(today), -7);
+      const [{ data: wkTasks }, { data: wkLogs }] = await Promise.all([
+        sb.from("tasks").select("*").eq("week", K(lastMon)),
+        sb.from("logs").select("*").gte("date", K(lastMon)).lt("date", todayK),
+      ]);
+      const r = weekReport(chores, wkTasks ?? [], wkLogs ?? [], p, lastMon, today, "지난주");
+      const missed = r.missed.reduce((a, i) => a + i.count, 0);
+      await sendTo({ person: p }, { title: `지난주 리포트가 나왔어 📋 별 ${r.stars}개`, body: `${missed ? `못 한 일 ${missed}개. ` : ""}${r.line}`, tag: "report", url: "./#report" });
+      out.push(`${p}:report`);
     }
   }
   return Response.json({ at: `${todayK} ${Math.floor(nowMin / 60)}:${nowMin % 60}`, sent: out });

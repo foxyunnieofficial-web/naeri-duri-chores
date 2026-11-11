@@ -2,7 +2,7 @@ import {
   PEOPLE, DAYN, WEEK_ORDER, RULES, PRAISE, DEFAULT_PREFS, D, K, add, diff, mondayOf, fmtDay, other,
   generateWeek, isMine, freqLabel, nudgeText,
   NICK, WHEN, askMessage, askCount, STICKERS, sticker, callName,
-  isParent, genMessage, COLORS, ACCS, DEFAULT_LOOK, HOME_Q, homeMessage,
+  isParent, genMessage, COLORS, ACCS, DEFAULT_LOOK, HOME_Q, homeMessage, weekReport, reportCompare,
 } from "./shared/plan.js";
 import { createStore } from "./store.js";
 
@@ -474,6 +474,41 @@ async function renderPlan() {
   $("planConfirm").textContent = w && w.planned ? "다시 정했어요" : "이대로 정했어요";
 }
 
+// ---- 화면: 주간 리포트 ----
+let repOff = -1; // 0 = 이번 주, -1 = 지난주 …
+const REP_MIN = -4;
+function reportOf(p, monday) {
+  const today = D(K(now()));
+  const upTo = repOff === 0 ? today : add(monday, 7);
+  const label = repOff === 0 ? "이번 주" : repOff === -1 ? "지난주" : "그 주";
+  return weekReport(chores(), Object.values(S.tasks), S.logs, p, monday, upTo, label);
+}
+function repList(items, mark) {
+  return items.length ? `<ul class="replist">${items.map(i => `<li><span class="mark">${mark}</span><span>${esc(i.name)}</span>${i.count > 1 ? `<span class="cnt">${i.count}번</span>` : ""}</li>`).join("")}</ul>` : `<p class="sub">없어</p>`;
+}
+function renderReport() {
+  const monday = add(thisMonday(), repOff * 7);
+  const sun = add(monday, 6);
+  $("repTitle").textContent = repOff === 0 ? "이번 주 리포트" : repOff === -1 ? "지난주 리포트" : `${-repOff}주 전 리포트`;
+  $("repRange").textContent = `${fmtDay(monday)} ~ ${fmtDay(sun)}${repOff === 0 ? " · 진행 중" : ""}`;
+  $("repPrev").disabled = repOff <= REP_MIN; $("repNext").disabled = repOff >= 0;
+  const reps = PEOPLE.map(p => reportOf(p, monday));
+  const shown = isPar() ? reps : reps.filter(r => r.person === me);
+  $("repMine").innerHTML = shown.map(r => `<section class="repcard">
+    <div class="head"><h2>${isPar() ? esc(r.person) + "의 리포트" : "내 리포트"}</h2><span class="count">별 ${r.stars}개</span></div>
+    <p class="repline">${esc(r.line)}</p>
+    <div class="repcols"><div><h3>한 일 <span class="count">${r.done.reduce((a, i) => a + i.count, 0)}</span></h3>${repList(r.done, "✓")}</div>
+    <div><h3>못 한 일 <span class="count">${r.missed.reduce((a, i) => a + i.count, 0)}</span></h3>${repList(r.missed, "○")}</div></div></section>`).join("");
+  const order = isPar() ? reps : [...reps].sort((a, b) => (a.person === me ? -1 : b.person === me ? 1 : 0));
+  const max = Math.max(1, ...reps.map(r => r.stars));
+  $("repCompare").innerHTML = order.map(r => `<div class="cmp">
+    <div class="cmphead">${mallang(r.person, "happy", 36, "")}<b>${esc(r.person)}</b><span class="big">${r.stars}</span><span class="sub">별</span></div>
+    <div class="cmpbar"><span class="c-${esc(r.person)}" style="width:${Math.round((r.stars / max) * 100)}%"></span></div>
+    <p>${esc(reportCompare(r))}</p>
+    ${r.missed.length ? `<p class="sub">못 한 일: ${esc(r.missed.map(i => i.count > 1 ? `${i.name}(${i.count}번)` : i.name).join(", "))}</p>` : `<p class="sub">못 한 일 없음 👑</p>`}
+  </div>`).join("");
+}
+
 // ---- 화면: 마이 ----
 function renderMy() {
   const p = prefs();
@@ -484,7 +519,7 @@ function renderMy() {
   document.querySelectorAll(".who button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.p === me)));
   $("prefAlarm").value = (p[me] && p[me].alarm) || "20:00";
   $("prefCheck").value = (p[me] && p[me].check) || "23:30";
-  $("prefPlan").value = p.plan || "21:00";
+  $("prefReport").value = p.report || "09:00";
   document.querySelectorAll("#v-my [data-kid]").forEach(e => { e.hidden = isPar(); });
   if (!isPar() && !$("defaults").dataset.dirty) renderDefaults();
   renderLook();
@@ -584,7 +619,7 @@ async function confirmPlan() {
 }
 async function savePrefs() {
   const p = prefs();
-  const next = { ...p, [me]: { ...(p[me] || {}), alarm: $("prefAlarm").value || "20:00", check: $("prefCheck").value || "23:30" }, plan: $("prefPlan").value || "21:00" };
+  const next = { ...p, [me]: { ...(p[me] || {}), alarm: $("prefAlarm").value || "20:00", check: $("prefCheck").value || "23:30" }, report: $("prefReport").value || "09:00" };
   S.household = { ...S.household, prefs: next };
   try { await store.saveHousehold(S.household); toast("알림 시간을 저장했어요", false); } catch (e) { fail(e); }
 }
@@ -681,11 +716,11 @@ async function testPush() {
 // ---- 화면 전환 ----
 function route() {
   const v = (location.hash || "#today").slice(1);
-  let view = ["today", "plan", "my"].includes(v) ? v : "today";
+  let view = ["today", "plan", "report", "my"].includes(v) ? v : "today";
   if (view === "plan" && isPar()) view = "today";
   document.querySelector('.tabs [data-tab="plan"]').hidden = isPar();
-  document.querySelector(".tabs").style.gridTemplateColumns = isPar() ? "repeat(2, 1fr)" : "";
-  for (const name of ["today", "plan", "my"]) $("v-" + name).hidden = name !== view;
+  document.querySelector(".tabs").style.gridTemplateColumns = isPar() ? "repeat(3, 1fr)" : "";
+  for (const name of ["today", "plan", "report", "my"]) $("v-" + name).hidden = name !== view;
   document.querySelectorAll(".tabs a").forEach(a => { if (a.dataset.tab === view) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
   render();
   window.scrollTo(0, 0);
@@ -696,6 +731,7 @@ function render() {
   renderToday();
   const v = (location.hash || "#today").slice(1);
   if (v === "plan") renderPlan();
+  if (v === "report") renderReport();
   if (v === "my") renderMy();
 }
 
@@ -726,6 +762,8 @@ document.addEventListener("click", e => {
   if (el.dataset.reqno) return answerRequest(el.dataset.reqno, false);
   if (el.dataset.reqcancel) return cancelRequest(el.dataset.reqcancel);
   if (el.dataset.stars) return openStars(el.dataset.stars);
+  if (el.id === "repPrev") { repOff = Math.max(REP_MIN, repOff - 1); return renderReport(); }
+  if (el.id === "repNext") { repOff = Math.min(0, repOff + 1); return renderReport(); }
   if (el.id === "starClose") { $("starSheet").hidden = true; starWho = null; return; }
   if (el.dataset.praise) return openPraise(el.dataset.praise);
   if (el.dataset.stk) return sendSticker(el.dataset.stk);
@@ -757,7 +795,7 @@ $("planConfirm").addEventListener("click", confirmPlan);
 $("saveDefaults").addEventListener("click", saveDefaults);
 $("pushOn").addEventListener("click", enablePush);
 $("pushTest").addEventListener("click", testPush);
-for (const id of ["prefAlarm", "prefCheck", "prefPlan"]) $(id).addEventListener("change", savePrefs);
+for (const id of ["prefAlarm", "prefCheck", "prefReport"]) $(id).addEventListener("change", savePrefs);
 window.addEventListener("hashchange", route);
 
 async function reload() {

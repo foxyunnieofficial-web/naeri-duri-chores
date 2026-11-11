@@ -23,6 +23,7 @@ export const DEFAULT_PREFS = {
   "내리": { alarm: "20:00", check: "23:30" },
   "두리": { alarm: "20:00", check: "23:30" },
   plan: "21:00",
+  report: "09:00", // 월요일 지난주 리포트 알림
 };
 export const RULES = ["밥 먹고 테이블 닦기", "물건 쓰면 제자리에", "설거지는 지금처럼 적당히", "두루마리·각티슈·물티슈 다 쓰면 리필"];
 export const PRAISE = ["잘했어요!", "최고!", "역시 너밖에 없어", "오늘도 해냈다!", "집이 반짝반짝해졌어요", "말랑이가 감동했어요",
@@ -280,3 +281,48 @@ export function homeMessage(from, a) {
 }
 export const homeTitle = from => (from === "두리" ? "두리의 오늘 밥 소식 🍚" : "언니의 오늘 귀가 소식 🏠");
 export const ackTitle = (by, to = "") => `${callName(by, to)}가 확인했어 👌`;
+
+// ---- 주간 리포트 ----
+// monday 주(월~일)에 person이 한 일과 안 한 일. tasks는 그 주의 할 일, logs는 별 기록.
+// upTo(포함 안 함)까지만 셉니다. 지난주면 다음 주 월요일, 이번 주면 오늘.
+export function weekReport(chores, tasks, logs, person, monday, upTo = add(monday, 7), label = "이번 주") {
+  const wk = K(monday), endK = K(add(monday, 7)), upK = K(upTo);
+  const find = id => chores.find(c => c.id === id);
+  const tally = list => {
+    const m = new Map();
+    for (const name of list) m.set(name, (m.get(name) || 0) + 1);
+    return [...m].map(([name, count]) => ({ name, count }));
+  };
+  const mine = logs.filter(l => l.by === person && l.date >= wk && l.date < endK);
+  const done = tally(mine.map(l => l.title || find(l.chore_id)?.name || l.chore_id));
+  // 정해진 날에 못 한 일 (주가 끝난 뒤 늦게 한 것도 그 주에는 못 한 걸로)
+  const missedTasks = tasks.filter(t => t.week === wk && isMine(t.who, person) && t.day < upK
+    && (t.status === "todo" || (t.done_at && t.done_at.slice(0, 10) >= endK)));
+  const missedNames = missedTasks.map(t => find(t.chore_id)?.name || t.chore_id);
+  // 매일 하는 일은 빠진 날 수
+  const days = Math.max(0, Math.min(7, diff(upTo, monday)));
+  for (const c of chores.filter(c => c.freq === "daily" && isMine(c.who, person))) {
+    const hit = new Set(mine.filter(l => l.chore_id === c.id).map(l => l.date)).size;
+    for (let i = hit; i < days; i++) missedNames.push(c.name);
+  }
+  const missed = tally(missedNames);
+  return { person, week: wk, label, stars: mine.length, done, missed, line: reportLine(missed, mine.length, label) };
+}
+const nameList = items => items.map(i => (i.count > 1 ? `${i.name}(${i.count}번)` : i.name)).join(", ");
+export const reportItems = nameList;
+// 받는 사람에게 하는 한 마디 (반말)
+// label: 이 리포트가 가리키는 주("이번 주", "지난주" …)
+export function reportLine(missed, stars, label = "이번 주") {
+  const next = label === "이번 주" ? "다음 주" : "이번 주";
+  if (!missed.length) return stars ? `${label} 할 일 다 했어! 별 ${stars}개, 진짜 최고 👑` : `${label}는 쉬어 가는 주였어. ${next}에 같이 힘내자 💪`;
+  const top = missed.slice(0, 2);
+  const obj = missed.length > 2 ? `${nameList(top)} 등을` : `${nameList(top)}${eulReul(top[top.length - 1].count > 1 ? "번" : top[top.length - 1].name)}`;
+  return `${label}에는 ${obj} 못 했어. ${next}에는 꼭 해줘! 🙏`;
+}
+// "두리는 이번 주에 바닥 밀대, 현관 청소를 했어"
+export function reportCompare(r) {
+  const label = r.label || "이번 주";
+  if (!r.done.length) return `${r.person}는 ${label}에 아직 별이 없어`;
+  const last = r.done[r.done.length - 1];
+  return `${r.person}는 ${label}에 ${nameList(r.done)}${eulReul(last.count > 1 ? "번" : last.name)} 했어`;
+}

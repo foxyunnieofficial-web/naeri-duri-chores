@@ -16,7 +16,7 @@ function supabaseStore(cfg, viewer) {
   return {
     kind: "server",
     async load() {
-      const since = K(add(mondayOf(new Date()), -14));
+      const since = K(add(mondayOf(new Date()), -35)); // 리포트에서 4주 전까지 봐요
       const recent = new Date(Date.now() - 14 * 864e5).toISOString();
       const [hh, tasks, logs, weeks, requests, stickers, messages] = await Promise.all([
         sb.from("household").select("*").eq("id", 1).maybeSingle().then(must),

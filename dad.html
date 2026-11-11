@@ -98,6 +98,22 @@
     </div>
   </main>
 
+  <!-- 주간 리포트 -->
+  <main class="view" id="v-report" hidden>
+    <div class="wrap" style="padding:0">
+      <header class="rephead">
+        <p class="sub" id="repRange"></p>
+        <h1 id="repTitle">지난주 리포트</h1>
+        <div class="weeknav"><button type="button" class="btn ghost small" id="repPrev" aria-label="이전 주">‹ 이전 주</button><button type="button" class="btn ghost small" id="repNext" aria-label="다음 주">다음 주 ›</button></div>
+      </header>
+      <div id="repMine"></div>
+      <section>
+        <div class="head"><h2>서로 비교</h2></div>
+        <div class="compare" id="repCompare"></div>
+      </section>
+    </div>
+  </main>
+
   <!-- 마이페이지 -->
   <main class="view" id="v-my" hidden>
     <div class="wrap" style="padding:0">
@@ -122,7 +138,7 @@
           <div class="pushhelp" id="pushHelp" hidden></div>
           <div class="field" data-kid><label for="prefAlarm">할 일 알림</label><input type="time" id="prefAlarm"><span class="sub">그날 할 일을 알려줘요</span></div>
           <div class="field" data-kid><label for="prefCheck">체크 알림</label><input type="time" id="prefCheck"><span class="sub">"오늘 했나요?" 물어봐요</span></div>
-          <div class="field" data-kid><label for="prefPlan">일요일 계획 알림</label><input type="time" id="prefPlan"><span class="sub">두 사람 모두에게</span></div>
+          <div class="field" data-kid><label for="prefReport">월요일 리포트 알림</label><input type="time" id="prefReport"><span class="sub">지난주 리포트를 두 사람 모두에게</span></div>
           <p class="sub" data-kid>금요일 할 일 알림 때 이번 주에 남은 일이 있으면 "이번 주가 2일 남았어요"도 함께 보내요.</p>
         </div>
       </section>
@@ -164,6 +180,7 @@
 <nav class="tabs" aria-label="메뉴">
   <a href="#today" data-tab="today"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg>오늘</a>
   <a href="#plan" data-tab="plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M8 3v4M16 3v4M4 10h16"/></svg><span>계획<span class="dot" id="planDot" hidden></span></span></a>
+  <a href="#report" data-tab="report"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>리포트</a>
   <a href="#my" data-tab="my"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4c4.5 0 7 3 7 7.5S16 20 12 20s-7-4-7-8.5S7.5 4 12 4z"/><path d="M9.5 11.5h.01M14.5 11.5h.01M10 15c1.2 1 2.8 1 4 0"/></svg>마이</a>
 </nav>
 

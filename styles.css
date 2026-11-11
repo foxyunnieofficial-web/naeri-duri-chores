@@ -334,3 +334,28 @@ section > .head h2 { font-size: 15px; }
 .load .bar { border-radius: 3px; }
 .pushhelp { background: none; border: 1px solid var(--line); color: var(--fg); font-weight: 500; }
 #planCallout:empty, #askRow:empty { display: none; }
+
+/* 주간 리포트 */
+.tabs { grid-template-columns: repeat(4, 1fr); }
+.rephead { padding-top: 24px; display: flex; flex-direction: column; gap: 6px; }
+.rephead h1 { font-size: 30px; line-height: 1.2; letter-spacing: -0.035em; }
+.rephead .sub { letter-spacing: 0.02em; }
+.weeknav { display: flex; gap: 6px; margin-top: 6px; }
+.weeknav .btn:disabled { opacity: .35; }
+.repline { margin: 0; font-size: 18px; font-weight: 600; line-height: 1.45; letter-spacing: -0.02em; }
+.repcols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.repcols h3 { font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 6px; display: flex; gap: 6px; align-items: baseline; }
+.replist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.replist li { display: flex; gap: 8px; align-items: baseline; }
+.replist .mark { color: var(--muted); width: 12px; flex: none; }
+.replist .cnt { margin-left: auto; color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.cmp { border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; background: var(--surface); }
+.cmp p { margin: 0; font-size: 13.5px; line-height: 1.5; }
+.cmphead { display: flex; align-items: center; gap: 6px; }
+.cmphead .big { margin-left: auto; font-size: 28px; font-weight: 600; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+.cmpbar { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.cmpbar span { display: block; height: 100%; border-radius: 2px; min-width: 4px; }
+.cmpbar .c-내리 { background: var(--naeri); } .cmpbar .c-두리 { background: var(--duri); }
+@media (max-width: 360px) { .repcols, .compare { grid-template-columns: 1fr; } }
+#repMine { display: flex; flex-direction: column; gap: 36px; }
