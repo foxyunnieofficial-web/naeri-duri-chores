@@ -299,9 +299,9 @@ export function weekReport(chores, tasks, logs, person, monday, upTo = add(monda
   const missedTasks = tasks.filter(t => t.week === wk && isMine(t.who, person) && t.day < upK
     && (t.status === "todo" || (t.done_at && t.done_at.slice(0, 10) >= endK)));
   const missedNames = missedTasks.map(t => find(t.chore_id)?.name || t.chore_id);
-  // 매일 하는 일은 빠진 날 수
+  // 매일 하는 일은 빠진 날 수. 시각이 정해진 일(환기)만 세고, 필요할 때 하는 일(그릇 정리)은 안 세요
   const days = Math.max(0, Math.min(7, diff(upTo, monday)));
-  for (const c of chores.filter(c => c.freq === "daily" && isMine(c.who, person))) {
+  for (const c of chores.filter(c => c.freq === "daily" && c.at && isMine(c.who, person))) {
     const hit = new Set(mine.filter(l => l.chore_id === c.id).map(l => l.date)).size;
     for (let i = hit; i < days; i++) missedNames.push(c.name);
   }
